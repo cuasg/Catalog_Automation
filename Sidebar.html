@@ -2055,7 +2055,20 @@
         if (job.type === 'repair_cartons') {
           const totalGroups = Number(job.totalGroups) || 0;
           const nextGroupIndex = Number(job.nextGroupIndex) || 0;
-          return totalGroups ? (Math.min(totalGroups, nextGroupIndex) + ' of ' + totalGroups + ' pair groups') : 'Preparing pair groups';
+          const prepStepLabel = String(job.prepStepLabel || '').trim();
+          const prepStepIndex = Math.max(0, Number(job.prepStepIndex) || 0);
+          const prepTotalSteps = Math.max(0, Number(job.prepTotalSteps) || 0);
+          if (!totalGroups) {
+            if (prepStepLabel && prepTotalSteps) {
+              return 'Preparing pair groups: ' + prepStepLabel + ' (' + Math.min(prepTotalSteps, prepStepIndex + 1) + ' of ' + prepTotalSteps + ')';
+            }
+            if (prepStepLabel) return 'Preparing pair groups: ' + prepStepLabel;
+            return 'Preparing pair groups';
+          }
+          if (prepStepLabel && nextGroupIndex === 0 && prepStepIndex < prepTotalSteps) {
+            return prepStepLabel + ' | 0 of ' + totalGroups + ' pair groups';
+          }
+          return Math.min(totalGroups, nextGroupIndex) + ' of ' + totalGroups + ' pair groups';
         }
 
         return '';
@@ -2084,7 +2097,11 @@
         if (job.type === 'repair_cartons') {
           const totalGroups = Number(job.totalGroups) || 0;
           const nextGroupIndex = Number(job.nextGroupIndex) || 0;
-          return totalGroups ? (nextGroupIndex / totalGroups) * 100 : 5;
+          if (totalGroups) return (nextGroupIndex / totalGroups) * 100;
+          const prepStepIndex = Math.max(0, Number(job.prepStepIndex) || 0);
+          const prepTotalSteps = Math.max(0, Number(job.prepTotalSteps) || 0);
+          if (prepTotalSteps) return Math.min(18, (prepStepIndex / prepTotalSteps) * 18);
+          return 5;
         }
 
         return 0;
@@ -2447,7 +2464,13 @@
         if (job.type === 'repair_cartons') {
           const totalGroups = Number(job.totalGroups) || 0;
           const nextGroupIndex = Number(job.nextGroupIndex) || 0;
-          if (!totalGroups) return Math.min(18, 5 + (elapsedMs / 900));
+          if (!totalGroups) {
+            const prepStepIndex = Math.max(0, Number(job.prepStepIndex) || 0);
+            const prepTotalSteps = Math.max(0, Number(job.prepTotalSteps) || 0);
+            const prepStepFraction = prepTotalSteps ? Math.min(0.98, prepStepIndex / prepTotalSteps) : 0;
+            const prepElapsedFraction = Math.min(0.98, elapsedMs / 2500);
+            return Math.min(18, 4 + (Math.max(prepStepFraction, prepElapsedFraction) * 14));
+          }
           const chunkGroups = Math.max(1, Math.min(300, totalGroups - nextGroupIndex));
           const base = (nextGroupIndex / totalGroups) * 100;
           const chunkWeight = (chunkGroups / totalGroups) * 100;

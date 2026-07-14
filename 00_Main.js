@@ -523,12 +523,27 @@ function runCatalogPricingCalculationStep_(job) {
   };
 }
 
-function runCatalogCartonRepairStep_(job) {
+function runCatalogCartonRepairStep_(job, progressCallback) {
   throwCatalogProductionCancelledIfNeeded_(job && job.runId);
   const ss = getCatalogWorkbook_();
   const skuSheet = ss.getSheetByName('Catalog_SKUs');
   const logSheet = ss.getSheetByName('Generation_Log');
   if (!skuSheet) throw new Error('Missing Catalog_SKUs sheet.');
+
+  function updateRepairProgress(partial) {
+    job = Object.assign({}, job, partial || {}, {
+      progressAnchorAt: getCatalogTimestamp_()
+    });
+    if (typeof progressCallback === 'function') {
+      progressCallback(Object.assign({}, job));
+    }
+  }
+
+  updateRepairProgress({
+    prepTotalSteps: 4,
+    prepStepIndex: 0,
+    prepStepLabel: 'Reading Catalog_SKUs'
+  });
 
   const values = skuSheet.getDataRange().getValues();
   if (values.length < 2) {
@@ -538,6 +553,12 @@ function runCatalogCartonRepairStep_(job) {
   const headers = values[0];
   const col = headerMap_(headers);
   const groupMap = {};
+
+  updateRepairProgress({
+    prepTotalSteps: 4,
+    prepStepIndex: 1,
+    prepStepLabel: 'Grouping paired variants'
+  });
 
   for (let i = 1; i < values.length; i++) {
     const row = values[i];
@@ -556,6 +577,12 @@ function runCatalogCartonRepairStep_(job) {
     });
   }
 
+  updateRepairProgress({
+    prepTotalSteps: 4,
+    prepStepIndex: 2,
+    prepStepLabel: 'Sorting pair groups'
+  });
+
   const pairKeys = Object.keys(groupMap).sort((a, b) => a.localeCompare(b));
   const totalGroups = pairKeys.length;
   const startGroupIndex = Math.max(0, Number(job.nextGroupIndex) || 0);
@@ -564,6 +591,14 @@ function runCatalogCartonRepairStep_(job) {
   const updates = [];
   let fieldsFilled = Number(job.fieldsFilled) || 0;
   let rowsUpdated = Number(job.rowsUpdated) || 0;
+
+  updateRepairProgress({
+    prepTotalSteps: 4,
+    prepStepIndex: 3,
+    prepStepLabel: 'Scanning carton mismatches',
+    totalGroups,
+    nextGroupIndex: startGroupIndex
+  });
 
   for (let index = startGroupIndex; index < endGroupIndex; index++) {
     if ((index - startGroupIndex) % 25 === 0) throwCatalogProductionCancelledIfNeeded_(job && job.runId);
@@ -613,6 +648,8 @@ function runCatalogCartonRepairStep_(job) {
     nextGroupIndex,
     rowsUpdated,
     fieldsFilled,
+    prepStepIndex: 4,
+    prepStepLabel: 'Applying updates',
     progressAnchorAt: getCatalogTimestamp_()
   });
 
@@ -3975,7 +4012,18 @@ function runNextCatalogProductionBatch_() {
     } else if (job.type === 'price_file') {
       generateCatalogPriceFiles(job.productGroup, job.fileName, { skipCartonNormalization: true });
     } else if (job.type === 'pricing_calc') {
-      const pricingStep = runChunkedProductionJobUntilPause_(job, batchDeadlineMs, runCatalogPricingCalculationStep_);
+      const pricingStep = runChunkedProductionJobUntilPause_(
+        job,
+        batchDeadlineMs,
+        runCatalogPricingCalculationStep_,
+        function(partialJob) {
+          state.jobs[state.nextJobIndex] = partialJob;
+          state.updatedAt = getCatalogTimestamp_();
+          if (!saveCatalogProductionState_(state)) {
+            throw new Error('__CATALOG_PRODUCTION_CANCELLED__');
+          }
+        }
+      );
       state.jobs[state.nextJobIndex] = pricingStep.job;
 
       if (!pricingStep.completed) {
@@ -3990,7 +4038,18 @@ function runNextCatalogProductionBatch_() {
         return;
       }
     } else if (job.type === 'repair_cartons') {
-      const repairStep = runChunkedProductionJobUntilPause_(job, batchDeadlineMs, runCatalogCartonRepairStep_);
+      const repairStep = runChunkedProductionJobUntilPause_(
+        job,
+        batchDeadlineMs,
+        runCatalogCartonRepairStep_,
+        function(partialJob) {
+          state.jobs[state.nextJobIndex] = partialJob;
+          state.updatedAt = getCatalogTimestamp_();
+          if (!saveCatalogProductionState_(state)) {
+            throw new Error('__CATALOG_PRODUCTION_CANCELLED__');
+          }
+        }
+      );
       state.jobs[state.nextJobIndex] = repairStep.job;
 
       if (!repairStep.completed) {
@@ -4105,12 +4164,12 @@ function runCatalogSlidesProductionJobUntilPause_(job, deadlineMs, progressCallb
   return { completed: false, job: nextJob };
 }
 
-function runChunkedProductionJobUntilPause_(job, deadlineMs, stepRunner) {
+function runChunkedProductionJobUntilPause_(job, deadlineMs, stepRunner, progressCallback) {
   let nextJob = Object.assign({}, job);
   let step = { completed: false, job: nextJob };
 
   while (Date.now() < deadlineMs - 15000) {
-    step = stepRunner(nextJob);
+    step = stepRunner(nextJob, progressCallback);
     nextJob = step.job;
     if (step.completed) return step;
   }
@@ -4347,10 +4406,10 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
   const left = titleElement.getLeft();
   const width = titleElement.getWidth();
   const titleHeight = estimateCatalogTitleTextHeight_(titleText, width);
-  const renderedTitleBottom = titleTop + Math.min(titleElement.getHeight(), titleHeight);
-  const top = renderedTitleBottom + 6.8;
+  const renderedTitleBottom = titleTop + Math.min(titleElement.getHeight(), titleHeight + 2.4);
+  const top = renderedTitleBottom + 5.2;
   const lineCount = estimateCatalogSpecInfoLineCount_(specInfo, width);
-  const height = Math.max(7.2, (lineCount * 6.65));
+  const height = Math.max(6.4, (lineCount * 5.85));
 
   const shape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, left, top, width, height);
   shape.getFill().setTransparent();
@@ -4364,7 +4423,7 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
   shape.getText().getParagraphStyle()
     .setParagraphAlignment(SlidesApp.ParagraphAlignment.START);
 
-  const desiredContentTop = top + height + 0.8;
+  const desiredContentTop = top + height + 0.25;
   [
     `{{SECTION_${sectionNumber}_PICTURE}}`,
     `{{SECTION_${sectionNumber}_TABLE}}`
@@ -4390,8 +4449,8 @@ function estimateCatalogTitleTextHeight_(text, width) {
   const normalizedText = String(text || '').trim();
   if (!normalizedText) return 16.6;
 
-  const lineCount = estimateCatalogWrappedLineCount_(normalizedText, width, 6.2, 1);
-  return Math.max(16.6, lineCount * 12.4);
+  const lineCount = estimateCatalogWrappedLineCount_(normalizedText, width, 6.05, 1);
+  return Math.max(16.6, lineCount * 12.0);
 }
 
 function estimateCatalogSpecInfoLineCount_(text, width) {
