@@ -361,6 +361,7 @@ function repairCatalogInnerMasterCartonCountsNow_() {
 }
 
 function runCatalogPricingCalculationStep_(job) {
+  throwCatalogProductionCancelledIfNeeded_(job && job.runId);
   const ss = getCatalogWorkbook_();
   const skuSheet = ss.getSheetByName('Catalog_SKUs');
   const rulesSheet = ss.getSheetByName('Price_Rules');
@@ -385,6 +386,7 @@ function runCatalogPricingCalculationStep_(job) {
   const outputRows = [];
 
   for (let i = startIndex; i < endExclusive; i++) {
+    if ((i - startIndex) % 50 === 0) throwCatalogProductionCancelledIfNeeded_(job && job.runId);
     const row = skuValues[i];
     const active = isTruthy_(row[skuCol.Active]);
     if (!active) {
@@ -476,6 +478,7 @@ function runCatalogPricingCalculationStep_(job) {
 }
 
 function runCatalogCartonRepairStep_(job) {
+  throwCatalogProductionCancelledIfNeeded_(job && job.runId);
   const ss = getCatalogWorkbook_();
   const skuSheet = ss.getSheetByName('Catalog_SKUs');
   const logSheet = ss.getSheetByName('Generation_Log');
@@ -517,6 +520,7 @@ function runCatalogCartonRepairStep_(job) {
   let rowsUpdated = Number(job.rowsUpdated) || 0;
 
   for (let index = startGroupIndex; index < endGroupIndex; index++) {
+    if ((index - startGroupIndex) % 25 === 0) throwCatalogProductionCancelledIfNeeded_(job && job.runId);
     const rows = groupMap[pairKeys[index]];
     const family = getCatalogPairedVariantFamily_(rows.map(entry => entry.variant));
     if (!family) continue;
@@ -2848,6 +2852,7 @@ function runCatalogSlidesProductionStep_(job, progressCallback) {
       context.sheetDefinitions,
       startIndex,
       endIndex,
+      nextJob.runId || '',
       function(partialNextPageIndex) {
         nextJob.nextPageIndex = partialNextPageIndex;
         nextJob.progressPageIndex = partialNextPageIndex;
@@ -3057,7 +3062,8 @@ function initializeCatalogSlidesDeck_(deckFileId, meta) {
   runSlidesOperationWithRetry_(`Save ${meta.deckName}`, () => presentation.saveAndClose());
 }
 
-function appendCatalogSlidesPagesChunk_(deckFileId, meta, pages, sheetDefinitions, startIndex, endIndex, progressCallback) {
+function appendCatalogSlidesPagesChunk_(deckFileId, meta, pages, sheetDefinitions, startIndex, endIndex, runId, progressCallback) {
+  throwCatalogProductionCancelledIfNeeded_(runId);
   let presentation = runSlidesOperationWithRetry_(
     `Open ${meta.deckName}`,
     () => SlidesApp.openById(deckFileId)
@@ -3071,6 +3077,7 @@ function appendCatalogSlidesPagesChunk_(deckFileId, meta, pages, sheetDefinition
   }
 
   for (let index = startIndex; index < endIndex; index++) {
+    throwCatalogProductionCancelledIfNeeded_(runId);
     const page = pages[index];
     const templateId = String(sheetDefinitions[page.template] || '').trim();
     if (!templateId) throw new Error(`Missing template ID for ${page.template}.`);
@@ -3084,12 +3091,14 @@ function appendCatalogSlidesPagesChunk_(deckFileId, meta, pages, sheetDefinition
     }
 
     const slide = presentation.appendSlide(templateSlides[templateId]);
-    fillCatalogProductSlide_(slide, meta, page, index + 2);
+    fillCatalogProductSlide_(slide, meta, page, index + 2, runId);
+    throwCatalogProductionCancelledIfNeeded_(runId);
     runSlidesOperationWithRetry_(`Save ${meta.deckName} page ${index + 1}`, () => presentation.saveAndClose());
     if (typeof progressCallback === 'function') {
       progressCallback(index + 1);
     }
     if (index + 1 < endIndex) {
+      throwCatalogProductionCancelledIfNeeded_(runId);
       presentation = runSlidesOperationWithRetry_(
         `Reopen ${meta.deckName}`,
         () => SlidesApp.openById(deckFileId)
@@ -3846,6 +3855,12 @@ function isCatalogProductionRunCancelled_(runId) {
   return canceledRunId === runId;
 }
 
+function throwCatalogProductionCancelledIfNeeded_(runId) {
+  if (isCatalogProductionRunCancelled_(runId)) {
+    throw new Error('__CATALOG_PRODUCTION_CANCELLED__');
+  }
+}
+
 function finalizeCanceledProductionState_(state, canceledAtOverride) {
   if (!state) return;
   const properties = PropertiesService.getScriptProperties();
@@ -3886,13 +3901,15 @@ function isTransientProductionError_(err) {
   return /service unavailable|internal error|timed out|try again|rate limit|too many calls|service invoked too many times/i.test(message);
 }
 
-function fillCatalogProductSlide_(slide, meta, page, pageNumber) {
+function fillCatalogProductSlide_(slide, meta, page, pageNumber, runId) {
+  throwCatalogProductionCancelledIfNeeded_(runId);
   const pageMeta = buildCatalogPageMeta_(meta, page);
   fillCatalogSlidePlaceholders_(slide, buildCatalogTextPlaceholders_(pageMeta, pageNumber, ''));
 
   let previousSectionBottom = null;
 
   page.sections.forEach((section, index) => {
+    throwCatalogProductionCancelledIfNeeded_(runId);
     const sectionNumber = index + 1;
     const titlePlaceholder = `{{SECTION_${sectionNumber}_TITLE}}`;
     const picturePlaceholder = `{{SECTION_${sectionNumber}_PICTURE}}`;
