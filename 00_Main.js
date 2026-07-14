@@ -4442,16 +4442,15 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
   if (!specInfo || !titleElement) return null;
 
   const titleText = String((titleElement.getText && titleElement.getText().asString()) || '').trim();
+  const layoutOverride = getCatalogSectionLayoutOverride_(titleText);
   const titleTop = titleElement.getTop();
   const left = titleElement.getLeft();
   const width = titleElement.getWidth();
   const titleHeight = estimateCatalogTitleTextHeight_(titleText, width);
   let titleSafetyPadding = titleText.length >= 42 ? 4.2 : titleText.length >= 30 ? 3.1 : 2.1;
-  if (needsExtraValveSpecTitleClearance_(titleText)) {
-    titleSafetyPadding += 1.6;
-  }
+  titleSafetyPadding += Number(layoutOverride.specTitleClearance || 0);
   const renderedTitleBottom = titleTop + titleHeight + titleSafetyPadding;
-  const top = renderedTitleBottom + 4.2;
+  const top = renderedTitleBottom + 4.2 + Number(layoutOverride.specTopOffset || 0);
   const lineCount = estimateCatalogSpecInfoLineCount_(specInfo, width);
   const height = Math.max(5.8, (lineCount * 5.4));
 
@@ -4467,7 +4466,7 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
   shape.getText().getParagraphStyle()
     .setParagraphAlignment(SlidesApp.ParagraphAlignment.START);
 
-  const desiredContentTop = top + height + 0.05;
+  const desiredContentTop = top + height + 0.05 + Number(layoutOverride.contentTopOffset || 0);
   [
     `{{SECTION_${sectionNumber}_PICTURE}}`,
     `{{SECTION_${sectionNumber}_TABLE}}`
@@ -4489,17 +4488,51 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
   };
 }
 
-function needsExtraValveSpecTitleClearance_(titleText) {
+function getCatalogSectionLayoutOverride_(titleText) {
   const normalizedTitle = normalizeMatchValue_(titleText);
-  if (!normalizedTitle) return false;
+  if (!normalizedTitle) return {};
 
-  return [
-    'dielectric unions',
-    'y-strainer - bronze - threaded',
-    'swing check valves - stainless - threaded',
-    'hose stop - stainless - fpt',
-    'hose stop - stainless - mpt'
-  ].some(pattern => normalizedTitle.indexOf(normalizeMatchValue_(pattern)) !== -1);
+  const overrides = [
+    {
+      match: 'dielectric unions - iron fpt x brass sweat',
+      specTitleClearance: 1.6
+    },
+    {
+      match: 'y-strainer - bronze - threaded',
+      specTitleClearance: 1.6
+    },
+    {
+      match: 'swing check valves - stainless - threaded',
+      specTitleClearance: 1.6
+    },
+    {
+      match: 'hose stop - stainless - fpt',
+      specTitleClearance: 1.6
+    },
+    {
+      match: 'hose stop - stainless - mpt',
+      specTitleClearance: 1.6
+    },
+    {
+      match: 'gate valves - bronze - threaded',
+      contentTopOffset: 2.0
+    },
+    {
+      match: 'globe valve - bronze - 125lb',
+      contentTopOffset: 2.0
+    },
+    {
+      match: 'gate valves - bronze - cxc',
+      contentTopOffset: 2.0
+    },
+    {
+      match: 'gate valves - stainless - threaded',
+      contentTopOffset: 2.0
+    }
+  ];
+
+  const match = overrides.find(entry => normalizedTitle.indexOf(normalizeMatchValue_(entry.match)) !== -1);
+  return match || {};
 }
 
 function estimateCatalogTitleTextHeight_(text, width) {
