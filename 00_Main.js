@@ -4442,7 +4442,7 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
   if (!specInfo || !titleElement) return null;
 
   const titleText = String((titleElement.getText && titleElement.getText().asString()) || '').trim();
-  const layoutOverride = getCatalogSectionLayoutOverride_(titleText);
+  const layoutOverride = getCatalogSectionLayoutOverride_(section, titleText);
   const titleTop = titleElement.getTop();
   const left = titleElement.getLeft();
   const width = titleElement.getWidth();
@@ -4488,50 +4488,75 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
   };
 }
 
-function getCatalogSectionLayoutOverride_(titleText) {
+function getCatalogSectionLayoutOverride_(section, titleText) {
+  const normalizedProductGroup = normalizeMatchValue_(section && section.productGroup);
+  const normalizedFittingType = normalizeMatchValue_(section && section.fittingType);
+  const normalizedVariant2 = normalizeMatchValue_(section && section.variant2);
   const normalizedTitle = normalizeMatchValue_(titleText);
-  if (!normalizedTitle) return {};
 
   const overrides = [
     {
-      match: 'dielectric unions - iron fpt x brass sweat',
+      productGroup: 'valves',
+      fittingType: 'dielectric unions',
       specTitleClearance: 1.6
     },
     {
-      match: 'y-strainer - bronze - threaded',
+      productGroup: 'valves',
+      fittingType: 'y-strainer',
+      variant2: 'bronze - threaded',
       specTitleClearance: 1.6
     },
     {
-      match: 'swing check valves - stainless - threaded',
+      productGroup: 'valves',
+      fittingType: 'swing check valves',
+      variant2: 'stainless - threaded',
       specTitleClearance: 1.6
     },
     {
-      match: 'hose stop - stainless - fpt',
+      productGroup: 'valves',
+      fittingType: 'hose stop',
+      variant2: 'stainless - fpt',
       specTitleClearance: 1.6
     },
     {
-      match: 'hose stop - stainless - mpt',
+      productGroup: 'valves',
+      fittingType: 'hose stop',
+      variant2: 'stainless - mpt',
       specTitleClearance: 1.6
     },
     {
-      match: 'gate valves - bronze - threaded',
+      productGroup: 'valves',
+      fittingType: 'gate valves',
+      variant2: 'bronze - threaded',
       contentTopOffset: 2.0
     },
     {
-      match: 'globe valve - bronze - 125lb',
+      productGroup: 'valves',
+      fittingType: 'globe valve',
+      variant2: 'bronze - 125lb',
       contentTopOffset: 2.0
     },
     {
-      match: 'gate valves - bronze - cxc',
+      productGroup: 'valves',
+      fittingType: 'gate valves',
+      variant2: 'bronze - cxc',
       contentTopOffset: 2.0
     },
     {
-      match: 'gate valves - stainless - threaded',
+      productGroup: 'valves',
+      fittingType: 'gate valves',
+      variant2: 'stainless - threaded',
       contentTopOffset: 2.0
     }
   ];
 
-  const match = overrides.find(entry => normalizedTitle.indexOf(normalizeMatchValue_(entry.match)) !== -1);
+  const match = overrides.find(entry => {
+    const productGroupMatch = !entry.productGroup || normalizedProductGroup === normalizeMatchValue_(entry.productGroup);
+    const fittingTypeMatch = !entry.fittingType || normalizedFittingType === normalizeMatchValue_(entry.fittingType);
+    const variant2Match = !entry.variant2 || normalizedVariant2 === normalizeMatchValue_(entry.variant2);
+    const titleMatch = !entry.title || normalizedTitle.indexOf(normalizeMatchValue_(entry.title)) !== -1;
+    return productGroupMatch && fittingTypeMatch && variant2Match && titleMatch;
+  });
   return match || {};
 }
 
