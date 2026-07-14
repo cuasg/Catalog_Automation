@@ -1,0 +1,15 @@
+.DS_Store
+Thumbs.db
+
+# Generated outputs and local review artifacts
+*.pdf
+*.xlsx
+
+# Local Codex/session state
+.agents/
+.codex/
+
+# Logs and temporary files
+*.log
+tmp/
+temp/

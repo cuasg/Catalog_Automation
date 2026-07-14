@@ -1,0 +1,2609 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      :root {
+        --msi-blue: #2556a8;
+        --msi-blue-dark: #173a5a;
+        --msi-blue-soft: #e8f0ff;
+        --msi-green: #4d9b61;
+        --msi-gray: #5f6b76;
+        --msi-gray-light: #f4f7fb;
+        --msi-border: #d6dfeb;
+        --msi-text: #1f2933;
+        --msi-white: #ffffff;
+        --msi-shadow: 0 10px 30px rgba(17, 24, 39, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font: 13px/1.4 Arial, sans-serif;
+        color: var(--msi-text);
+        background: linear-gradient(180deg, #eef4fb 0%, #f8fafc 180px, #f8fafc 100%);
+      }
+
+      .app {
+        padding: 10px;
+        width: 100%;
+      }
+
+      .hero {
+        padding: 14px;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: linear-gradient(135deg, #173a5a 0%, #2556a8 62%, #4d9b61 100%);
+        box-shadow: var(--msi-shadow);
+      }
+
+      .hero h1 {
+        margin: 0 0 4px;
+        font-size: 18px;
+        color: #ffffff;
+      }
+
+      .hero p {
+        margin: 0;
+        color: rgba(255,255,255,0.86);
+      }
+
+      .tabs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+        margin: 14px 0;
+      }
+
+      .tab {
+        border: 1px solid var(--msi-border);
+        background: rgba(255,255,255,0.8);
+        color: var(--msi-blue-dark);
+        padding: 7px 5px;
+        font-weight: 700;
+        font-size: 12px;
+        line-height: 1.15;
+        min-height: 38px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        text-align: center;
+        cursor: pointer;
+      }
+
+      .tab.active {
+        background: var(--msi-blue);
+        color: var(--msi-white);
+        border-color: var(--msi-blue);
+        box-shadow: 0 6px 16px rgba(37, 86, 168, 0.22);
+      }
+
+      .panel {
+        display: none;
+      }
+
+      .panel.active {
+        display: block;
+      }
+
+      .section {
+        margin-bottom: 12px;
+        padding: 14px;
+        border: 1px solid var(--msi-border);
+        background: var(--msi-white);
+        box-shadow: var(--msi-shadow);
+      }
+
+      .section h2 {
+        margin: 0 0 6px;
+        font-size: 14px;
+        color: var(--msi-blue-dark);
+      }
+
+      .section p {
+        margin: 0 0 10px;
+        color: var(--msi-gray);
+      }
+
+      .actions,
+      .stack {
+        display: grid;
+        gap: 8px;
+      }
+
+      .button {
+        width: 100%;
+        border: 1px solid var(--msi-blue);
+        background: var(--msi-blue);
+        color: var(--msi-white);
+        padding: 9px 10px;
+        text-align: left;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 6px 16px rgba(37, 86, 168, 0.18);
+      }
+
+      .button.secondary {
+        background: var(--msi-white);
+        color: var(--msi-blue-dark);
+      }
+
+      .button.green {
+        border-color: var(--msi-green);
+        background: var(--msi-green);
+      }
+
+      .button:disabled {
+        opacity: 0.65;
+        cursor: wait;
+      }
+
+      .search {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid var(--msi-border);
+        margin-bottom: 10px;
+      }
+
+      .group-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .group {
+        border: 1px solid var(--msi-border);
+        padding: 10px;
+        background: linear-gradient(180deg, #ffffff 0%, #f6f9fd 100%);
+      }
+
+      .group-select {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      .group-select input {
+        width: auto;
+        margin: 2px 0 0;
+      }
+
+      .group-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .group-name {
+        font-weight: 700;
+        color: var(--msi-blue-dark);
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 2px 6px;
+        font-size: 11px;
+        border: 1px solid var(--msi-border);
+        background: var(--msi-white);
+        color: var(--msi-gray);
+      }
+
+      .meta {
+        margin-bottom: 8px;
+        color: var(--msi-gray);
+      }
+
+      .group-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .group-actions .button {
+        padding: 8px 6px;
+        text-align: center;
+        font-size: 12px;
+      }
+
+      .status {
+        padding: 10px;
+        border: 1px solid var(--msi-border);
+        background: var(--msi-white);
+        margin-bottom: 12px;
+        white-space: pre-wrap;
+        box-shadow: var(--msi-shadow);
+      }
+
+      .progress-shell {
+        margin-bottom: 12px;
+        padding: 10px;
+        border: 1px solid var(--msi-border);
+        background: var(--msi-white);
+        box-shadow: var(--msi-shadow);
+      }
+
+      .progress-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 6px;
+      }
+
+      .progress-text {
+        color: var(--msi-blue-dark);
+        font-weight: 700;
+      }
+
+      .progress-value {
+        color: var(--msi-gray);
+        font-size: 12px;
+      }
+
+      .progress-track {
+        position: relative;
+        width: 100%;
+        height: 10px;
+        background: #dfe6ee;
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        height: 100%;
+        width: 0%;
+        background: var(--msi-green);
+        transition: width 0.12s linear;
+      }
+
+      .progress-shell.active .progress-fill::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.32) 45%, transparent 100%);
+        animation: progressPulse 1.4s linear infinite;
+      }
+
+      @keyframes progressPulse {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(220%); }
+      }
+
+      .status.busy {
+        border-color: var(--msi-blue);
+      }
+
+      .status.error {
+        border-color: #b42318;
+        color: #b42318;
+      }
+
+      .status.success {
+        border-color: var(--msi-green);
+      }
+
+      .hint {
+        font-size: 12px;
+        color: var(--msi-gray);
+      }
+
+      .form-grid {
+        display: grid;
+        gap: 8px;
+      }
+
+      .field label {
+        display: block;
+        margin-bottom: 4px;
+        font-weight: 700;
+        color: var(--msi-blue-dark);
+      }
+
+      .field input,
+      .field select {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid var(--msi-border);
+        background: var(--msi-white);
+      }
+
+      .checkbox-field {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-top: 4px;
+      }
+
+      .checkbox-field input {
+        width: auto;
+        margin: 0;
+      }
+
+      .choice-grid {
+        display: grid;
+        gap: 6px;
+        padding: 8px;
+        border: 1px solid var(--msi-border);
+        background: #fbfdff;
+        max-height: 160px;
+        overflow-y: auto;
+      }
+
+      .choice-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+      }
+
+      .choice-item input {
+        width: auto;
+        margin: 0;
+      }
+
+      .field-hint {
+        margin-top: 4px;
+        font-size: 11px;
+        color: var(--msi-gray);
+      }
+
+      .rule-list {
+        display: grid;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .rule-toolbar {
+        display: grid;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .rule-toolbar-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .rule-bulk-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .rule {
+        border: 1px solid var(--msi-border);
+        background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
+        padding: 8px;
+      }
+
+      .rule-actions {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .rule-action {
+        border: 1px solid var(--msi-border);
+        background: var(--msi-white);
+        color: var(--msi-blue-dark);
+        padding: 5px 8px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .rule-action.danger {
+        border-color: #d92d20;
+        color: #d92d20;
+      }
+
+      .rule.rule-group {
+        border-left: 4px solid #1f4e78;
+      }
+
+      .rule.rule-plc {
+        border-left: 4px solid #6aa84f;
+      }
+
+      .rule.rule-fitting {
+        border-left: 4px solid #7f8c99;
+      }
+
+      .rule.rule-item {
+        border-left: 4px solid #000000;
+      }
+
+      .rule strong {
+        color: var(--msi-blue-dark);
+      }
+
+      .rule-scope-group {
+        margin-bottom: 12px;
+      }
+
+      .rule-scope-group h3 {
+        margin: 0 0 8px;
+        font-size: 13px;
+        color: var(--msi-blue-dark);
+      }
+
+      .rule-history {
+        display: grid;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .rule-history-item {
+        border: 1px solid var(--msi-border);
+        background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
+        padding: 8px;
+      }
+
+      .rule-history-item strong {
+        color: var(--msi-blue-dark);
+      }
+
+      .rule-history-meta {
+        font-size: 12px;
+        color: var(--msi-gray);
+        margin-bottom: 4px;
+      }
+
+      .two-col {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .metric-card {
+        padding: 12px;
+        border: 1px solid var(--msi-border);
+        background: linear-gradient(180deg, #ffffff 0%, #f5f8fc 100%);
+      }
+
+      .metric-label {
+        margin-bottom: 6px;
+        font-size: 11px;
+        text-transform: uppercase;
+        color: var(--msi-gray);
+      }
+
+      .metric-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--msi-blue-dark);
+      }
+
+      .metric-subvalue {
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--msi-gray);
+      }
+
+      .overview-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+
+      .overview-table th,
+      .overview-table td {
+        padding: 8px 10px;
+        border-top: 1px solid var(--msi-border);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .overview-table th {
+        border-top: 0;
+        background: var(--msi-blue-soft);
+        color: var(--msi-blue-dark);
+        font-size: 11px;
+        text-transform: uppercase;
+      }
+
+      .overview-table td strong {
+        color: var(--msi-blue-dark);
+      }
+
+      .pill-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+
+      .pill {
+        display: inline-block;
+        padding: 2px 6px;
+        border: 1px solid var(--msi-border);
+        background: #f7f9fc;
+        color: var(--msi-gray);
+        font-size: 11px;
+      }
+
+      .issue-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .issue {
+        border: 1px solid var(--msi-border);
+        padding: 10px;
+        background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
+      }
+
+      .issue.issue-error {
+        border-left: 4px solid #b42318;
+      }
+
+      .issue.issue-warning {
+        border-left: 4px solid #b7791f;
+      }
+
+      .issue-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 4px;
+      }
+
+      .issue-scope {
+        font-weight: 700;
+        color: var(--msi-blue-dark);
+      }
+
+      .issue-badge {
+        font-size: 11px;
+        padding: 2px 6px;
+        border: 1px solid var(--msi-border);
+        background: var(--msi-white);
+      }
+
+      .issue-badge.error {
+        color: #b42318;
+      }
+
+      .issue-badge.warning {
+        color: #8a5b0a;
+      }
+
+      .workflow-steps {
+        display: grid;
+        gap: 8px;
+      }
+
+      .workflow-step {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px;
+        border: 1px solid var(--msi-border);
+        background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
+      }
+
+      .workflow-step-title {
+        font-weight: 700;
+        color: var(--msi-blue-dark);
+      }
+
+      .workflow-step-copy {
+        margin-top: 2px;
+        font-size: 12px;
+        color: var(--msi-gray);
+      }
+
+      .workflow-step-badge {
+        white-space: nowrap;
+        font-size: 11px;
+        padding: 2px 6px;
+        border: 1px solid var(--msi-border);
+        background: var(--msi-white);
+      }
+
+      .workflow-step-badge.good {
+        color: var(--msi-green);
+      }
+
+      .workflow-step-badge.warn {
+        color: #8a5b0a;
+      }
+
+      .workflow-step-badge.bad {
+        color: #b42318;
+      }
+
+      .notice-banner {
+        margin-bottom: 12px;
+        padding: 10px 12px;
+        border: 1px solid var(--msi-border);
+        background: #fff8e8;
+        color: #7a4f01;
+      }
+
+      .notice-banner.error {
+        background: #fff1f1;
+        color: #9f1d1d;
+        border-color: #f1c7c7;
+      }
+
+      @media (max-width: 760px) {
+        .two-col {
+          grid-template-columns: 1fr;
+        }
+
+        .metric-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .tabs {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="hero">
+        <h1>MSI Automation</h1>
+        <p>Use the workflow below to update pricing, repair carton counts, and generate some or all price lists and catalogs.</p>
+      </div>
+
+      <div id="productionSafetyBanner"></div>
+
+      <div id="status" class="status">Loading workflow...</div>
+
+      <div id="operationProgressShell" class="progress-shell">
+        <div class="progress-meta">
+          <div id="operationProgressText" class="progress-text">Current Operation: Idle</div>
+          <div id="operationProgressValue" class="progress-value">0%</div>
+        </div>
+        <div class="progress-track">
+          <div id="operationProgressFill" class="progress-fill"></div>
+        </div>
+      </div>
+
+      <div id="runProgressShell" class="progress-shell">
+        <div class="progress-meta">
+          <div id="runProgressText" class="progress-text">Production Run: Idle</div>
+          <div id="runProgressValue" class="progress-value">0%</div>
+        </div>
+        <div class="progress-track">
+          <div id="runProgressFill" class="progress-fill"></div>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="overview">Overview</button>
+        <button class="tab" data-tab="preflight">Preflight</button>
+        <button class="tab" data-tab="pricing">Pricing</button>
+        <button class="tab" data-tab="priceLists">Price Lists</button>
+        <button class="tab" data-tab="catalogs">Catalogs</button>
+        <button class="tab" data-tab="maintenance">Maintenance</button>
+      </div>
+
+      <div id="overview" class="panel active">
+        <div class="section">
+          <h2>Recommended Workflow</h2>
+          <p>Run the production steps in this order so the workbook is validated before output generation starts.</p>
+          <div id="workflowSteps" class="workflow-steps"></div>
+        </div>
+
+        <div class="section">
+          <h2>Workbook Snapshot</h2>
+          <p>Use this page to audit workbook scale, active coverage, and recent production signals before making changes.</p>
+          <div id="overviewMetrics" class="metric-grid"></div>
+        </div>
+
+        <div class="section">
+          <h2>Category Breakdown</h2>
+          <p>At-a-glance SKU, PLC, rule, and output coverage by product group.</p>
+          <div id="overviewGroupTable"></div>
+        </div>
+
+        <div class="section">
+          <h2>Last Production Run</h2>
+          <p>Review the latest batch summary and rerun failures from Maintenance when needed.</p>
+          <div id="lastRunSummary"></div>
+        </div>
+      </div>
+
+      <div id="preflight" class="panel">
+        <div class="section">
+          <h2>Preflight Validation</h2>
+          <p>Audit workbook structure, active catalog configuration, pricing coverage, and likely output failures before you queue production.</p>
+          <div class="actions">
+            <button class="button" data-action="runPreflight" title="Refresh the production-readiness audit from the live workbook.">Refresh Preflight</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <div id="preflightMetrics" class="metric-grid"></div>
+        </div>
+
+        <div class="section">
+          <h2>Issues</h2>
+          <div id="preflightIssues" class="issue-list"></div>
+        </div>
+      </div>
+
+      <div id="pricing" class="panel">
+        <div class="two-col">
+          <div>
+            <div class="section">
+              <h2>Pricing Tools</h2>
+              <p>These tools update workbook data. Run them before generating output files.</p>
+              <div class="stack">
+                <button class="button" data-action="calculatePricing" title="Recalculates applied increases, calculated prices, and update flags.">Recalculate Pricing</button>
+              </div>
+            </div>
+
+            <div class="section">
+              <h2>Price Increase Rules</h2>
+              <p>Create or update the rules in `Price_Rules` without editing the sheet directly. Rule precedence remains item, fitting type, PLC, then product group.</p>
+              <div id="ruleEditorStatus" class="hint" style="margin-bottom:10px;">Creating a new rule.</div>
+
+              <div class="form-grid">
+                <div class="field">
+                  <label for="ruleScope">Rule Scope</label>
+                  <select id="ruleScope" title="Choose whether this increase applies to all groups, one product group, one PLC, one fitting type, or one item number.">
+                    <option value="allGroups">All Product Groups</option>
+                    <option value="group" selected>Product Group</option>
+                    <option value="plc">PLC</option>
+                    <option value="fittingType">Fitting Type</option>
+                    <option value="itemNumber">Item Number</option>
+                  </select>
+                </div>
+
+                <div class="field">
+                  <label for="ruleProductGroup">Product Group</label>
+                  <select id="ruleProductGroup" title="Choose the product group when the rule does not apply to every product group."></select>
+                </div>
+
+                <div id="rulePlcField" class="field" style="display:none;">
+                  <label for="rulePlc">PLC</label>
+                  <select id="rulePlc" title="Choose the PLC for a PLC-level increase rule."></select>
+                </div>
+
+                <div id="ruleFittingField" class="field" style="display:none;">
+                  <label for="ruleFittingType">Fitting Type</label>
+                  <select id="ruleFittingType" title="Choose the fitting type for a fitting-level increase rule."></select>
+                </div>
+
+                <div id="ruleItemField" class="field" style="display:none;">
+                  <label for="ruleItemNumber">Item Number</label>
+                  <input id="ruleItemNumber" list="ruleItemNumbers" type="text" placeholder="Example: A1002008" title="Use this only for an item-specific increase rule.">
+                  <datalist id="ruleItemNumbers"></datalist>
+                </div>
+
+                <div id="ruleVariantField" class="field" style="display:none;">
+                  <label id="ruleVariantLabel" for="ruleVariantOptions">Variant</label>
+                  <div id="ruleVariantOptions" class="choice-grid"></div>
+                  <div class="field-hint">Leave every box unchecked to apply the rule to all matching values at this scope.</div>
+                </div>
+
+                <div id="ruleVariant2Field" class="field" style="display:none;">
+                  <label id="ruleVariant2Label" for="ruleVariant2Options">Secondary Variant</label>
+                  <div id="ruleVariant2Options" class="choice-grid"></div>
+                  <div class="field-hint">Use this when the product family also splits by class, schedule, grade, or connection type.</div>
+                </div>
+
+                <div class="field">
+                  <label for="ruleIncreasePct">Increase Percent</label>
+                  <input id="ruleIncreasePct" type="text" placeholder="Example: 5 or 5%" title="Enter the increase as 5 or 5%.">
+                </div>
+
+                <div class="field">
+                  <label for="ruleNotes">Notes</label>
+                  <input id="ruleNotes" type="text" placeholder="Optional note" title="Optional note stored with the rule.">
+                </div>
+
+                <div class="field">
+                  <label>Rule Status</label>
+                  <label class="checkbox-field">
+                    <input id="ruleActive" type="checkbox" checked>
+                    <span>Active</span>
+                  </label>
+                </div>
+
+                <div class="stack">
+                  <button id="saveRuleButton" class="button" title="Saves the rule to the Price_Rules sheet.">Save Rule</button>
+                  <button id="saveRuleAndRecalcButton" class="button green" title="Saves the rule, then recalculates pricing.">Save Rule + Recalculate Pricing</button>
+                  <button id="cancelRuleEditButton" class="button secondary" style="display:none;" title="Stops editing the selected rule and resets the form.">Cancel Edit</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="section">
+              <h2>Current Rules</h2>
+              <p>Review the full `Price_Rules` stack, grouped by rule type and color-coded for easier auditing.</p>
+              <div class="rule-toolbar">
+                <div class="rule-toolbar-grid">
+                  <div class="field">
+                    <label for="ruleDisplayGroup">Product Group</label>
+                    <select id="ruleDisplayGroup" title="Filter the displayed rule list to one product group or show every rule."></select>
+                  </div>
+                  <div class="field">
+                    <label for="ruleSearch">Rule Search</label>
+                    <input id="ruleSearch" type="text" placeholder="Search rules">
+                  </div>
+                  <div class="field">
+                    <label for="ruleStatusFilter">Status</label>
+                    <select id="ruleStatusFilter" title="Filter rules by active or inactive status.">
+                      <option value="">All Statuses</option>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="rule-bulk-actions">
+                  <button id="bulkEnableRulesButton" class="button secondary" title="Enables every rule currently visible in the filtered list.">Enable Filtered Rules</button>
+                  <button id="bulkDisableRulesButton" class="button secondary" title="Disables every rule currently visible in the filtered list.">Disable Filtered Rules</button>
+                </div>
+              </div>
+              <div id="priceRuleList" class="rule-list"></div>
+              <div class="section" style="margin-top:12px; margin-bottom:0;">
+                <h2>Recent Rule Activity</h2>
+                <p>Recent rule saves, status changes, and removals recorded in `Generation_Log`.</p>
+                <div id="priceRuleHistory" class="rule-history"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="maintenance" class="panel">
+        <div class="section">
+          <h2>Maintenance Tools</h2>
+          <p>Use these queue and recovery tools to monitor production and rerun failures when needed.</p>
+          <div class="stack">
+            <button class="button secondary" data-action="productionStatus" title="Refresh the current queue status or last completed run.">Refresh Production Status</button>
+            <button class="button secondary" data-action="rerunFailedJobs" title="Queues only the failed jobs from the most recent production summary.">Rerun Failed Jobs</button>
+            <button class="button secondary" data-action="cancelProduction" title="Stops the active queued production run.">Cancel Active Production Run</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="priceLists" class="panel">
+        <div class="section">
+          <h2>Price List Generation</h2>
+          <p>Run all active price lists, or generate specific product groups without changing the group Active toggle.</p>
+          <div id="priceListPreflightBanner"></div>
+          <div class="actions">
+            <button class="button green" data-action="generateAllPriceLists" title="Queues every active price-list job from Catalog_Groups.">Generate All Active Price Lists</button>
+            <button id="generateSelectedPriceListsButton" class="button secondary" title="Queues only the product groups selected below.">Generate Selected Price Lists</button>
+            <button id="clearSelectedPriceListsButton" class="button secondary" title="Clears the current price-list product-group selection.">Clear Selected Price Lists</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <input id="priceListSearch" class="search" type="text" placeholder="Filter product groups">
+          <div id="priceListSelectionSummary" class="hint" style="margin-bottom:10px;">No price-list groups selected.</div>
+          <div id="priceListGroups" class="group-list"></div>
+        </div>
+      </div>
+
+      <div id="catalogs" class="panel">
+        <div class="section">
+          <h2>Catalog Generation</h2>
+          <p>Run all active catalog PDFs, or generate and preview a single product group without changing the group Active toggle.</p>
+          <div id="catalogPreflightBanner"></div>
+          <div class="actions">
+            <button class="button green" data-action="generateAllCatalogs" title="Queues every active catalog PDF job from Catalog_Groups.">Generate All Active Catalog PDFs</button>
+            <button id="generateSelectedCatalogsButton" class="button secondary" title="Queues only the product groups selected below.">Generate Selected Catalog PDFs</button>
+            <button id="clearSelectedCatalogsButton" class="button secondary" title="Clears the current catalog product-group selection.">Clear Selected Catalogs</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <input id="catalogSearch" class="search" type="text" placeholder="Filter product groups">
+          <div id="catalogSelectionSummary" class="hint" style="margin-bottom:10px;">No catalog groups selected.</div>
+          <div id="catalogGroups" class="group-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const initialTab = <?= JSON.stringify(initialTab || 'overview') ?>;
+      let workflowData = null;
+      let busy = false;
+      let statusPollTimer = null;
+      let progressAnimationTimer = null;
+      let lastProgressAnimationAt = 0;
+      let latestProductionStatus = null;
+      let progressState = {
+        operation: { displayedPercent: 0, targetPercent: 0, targetText: 'Current Operation: Idle', targetDetail: '0%' },
+        run: { displayedPercent: 0, targetPercent: 0, targetText: 'Production Run: Idle', targetDetail: '0%' }
+      };
+      let activeTab = normalizeTabName(initialTab);
+      let editingRuleRowNumber = null;
+      let selectedCatalogGroups = {};
+      let selectedPriceListGroups = {};
+
+      function normalizeTabName(tabName) {
+        const allowedTabs = ['overview', 'preflight', 'pricing', 'priceLists', 'catalogs', 'maintenance'];
+        return allowedTabs.indexOf(tabName) !== -1 ? tabName : 'overview';
+      }
+
+      function setStatus(message, mode) {
+        const node = document.getElementById('status');
+        node.textContent = message;
+        node.className = 'status' + (mode ? ' ' + mode : '');
+      }
+
+      function setBusy(nextBusy) {
+        busy = nextBusy;
+        document.querySelectorAll('button').forEach(button => {
+          button.disabled = nextBusy;
+        });
+      }
+
+      function renderProgressBar(key, percent, text, detail) {
+        const clamped = Math.max(0, Math.min(100, Number(percent) || 0));
+        document.getElementById(key + 'ProgressFill').style.width = clamped + '%';
+        document.getElementById(key + 'ProgressText').textContent = text || 'Idle';
+        document.getElementById(key + 'ProgressValue').textContent = detail || (Math.round(clamped) + '%');
+        document.getElementById(key + 'ProgressShell').classList.toggle('active', isProductionStatusActive(latestProductionStatus));
+      }
+
+      function setProgressTarget(key, percent, text, detail, force) {
+        const state = progressState[key];
+        state.targetPercent = Math.max(0, Math.min(100, Number(percent) || 0));
+        state.targetText = text || 'Idle';
+        state.targetDetail = detail || (Math.round(state.targetPercent) + '%');
+
+        if (force) {
+          state.displayedPercent = state.targetPercent;
+          renderProgressBar(key, state.displayedPercent, state.targetText, state.targetDetail);
+        }
+      }
+
+      function switchTab(tabName) {
+        activeTab = normalizeTabName(tabName);
+        document.querySelectorAll('.tab').forEach(node => {
+          node.classList.toggle('active', node.dataset.tab === activeTab);
+        });
+        document.querySelectorAll('.panel').forEach(node => {
+          node.classList.toggle('active', node.id === activeTab);
+        });
+      }
+
+      function escapeHtml(value) {
+        return String(value || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function getVisibleGroups(type, filterValue) {
+        const filterText = String(filterValue || '').trim().toLowerCase();
+        return (workflowData.groups || []).filter(group => {
+          if (type === 'catalog' && !group.catalogCount) return false;
+          if (type === 'priceList' && !group.priceFileCount) return false;
+          if (!filterText) return true;
+          return group.productGroup.toLowerCase().indexOf(filterText) !== -1;
+        });
+      }
+
+      function buildGroupCard(group, type) {
+        const fileCount = type === 'catalog' ? group.catalogCount : group.priceFileCount;
+        const runAction = type === 'catalog' ? 'generateCatalog' : 'generatePriceList';
+        const previewButton = type === 'catalog'
+          ? '<button class="button secondary action-button" data-action="previewCatalog" data-group="' + escapeHtml(group.productGroup) + '" title="Preview page planning for this catalog.">Preview</button>'
+          : '';
+        const selectionBlock = type === 'catalog'
+          ? '<label class="group-select">' +
+              '<input type="checkbox" data-catalog-select="' + escapeHtml(group.productGroup) + '"' + (selectedCatalogGroups[group.productGroup] ? ' checked' : '') + '>' +
+              '<div class="group-name">' + escapeHtml(group.productGroup) + '</div>' +
+            '</label>'
+          : type === 'priceList'
+            ? '<label class="group-select">' +
+                '<input type="checkbox" data-price-list-select="' + escapeHtml(group.productGroup) + '"' + (selectedPriceListGroups[group.productGroup] ? ' checked' : '') + '>' +
+                '<div class="group-name">' + escapeHtml(group.productGroup) + '</div>' +
+              '</label>'
+          : '<div class="group-name">' + escapeHtml(group.productGroup) + '</div>';
+
+        return '' +
+          '<div class="group">' +
+            '<div class="group-head">' +
+              selectionBlock +
+              '<span class="badge">' + (group.isActive ? 'Active' : 'Inactive') + '</span>' +
+            '</div>' +
+            '<div class="meta">' + fileCount + ' configured ' + (type === 'catalog' ? 'catalog target(s)' : 'price-list target(s)') + '</div>' +
+            '<div class="group-actions">' +
+              '<button class="button action-button" data-action="' + runAction + '" data-group="' + escapeHtml(group.productGroup) + '" title="Run this product group without changing the group Active toggle.">Generate</button>' +
+              previewButton +
+            '</div>' +
+          '</div>';
+      }
+
+      function renderGroups() {
+        const productGroupSelect = document.getElementById('ruleProductGroup');
+        const currentProductGroup = productGroupSelect.value;
+        const ruleDisplayGroup = document.getElementById('ruleDisplayGroup');
+        const currentDisplayGroup = ruleDisplayGroup.value;
+        const catalogSearch = document.getElementById('catalogSearch').value;
+        const priceListSearch = document.getElementById('priceListSearch').value;
+        const catalogGroups = getVisibleGroups('catalog', catalogSearch);
+        const priceListGroups = getVisibleGroups('priceList', priceListSearch);
+        const productGroups = (workflowData.groups || []).map(group => group.productGroup);
+
+        productGroupSelect.innerHTML = productGroups
+          .map(group => '<option value="' + escapeHtml(group) + '">' + escapeHtml(group) + '</option>')
+          .join('');
+
+        if (productGroups.indexOf(currentProductGroup) !== -1) {
+          productGroupSelect.value = currentProductGroup;
+        }
+
+        ruleDisplayGroup.innerHTML =
+          '<option value="">All Product Groups</option>' +
+          productGroups
+            .map(group => '<option value="' + escapeHtml(group) + '">' + escapeHtml(group) + '</option>')
+            .join('');
+
+        if (productGroups.indexOf(currentDisplayGroup) !== -1) {
+          ruleDisplayGroup.value = currentDisplayGroup;
+        }
+
+        renderRuleInputOptions();
+
+        document.getElementById('catalogGroups').innerHTML = catalogGroups.length
+          ? catalogGroups.map(group => buildGroupCard(group, 'catalog')).join('')
+          : '<div class="hint">No catalog groups match this filter.</div>';
+
+        document.getElementById('priceListGroups').innerHTML = priceListGroups.length
+          ? priceListGroups.map(group => buildGroupCard(group, 'priceList')).join('')
+          : '<div class="hint">No price-list groups match this filter.</div>';
+
+        renderPriceRules();
+        renderRuleHistory();
+        renderOverview();
+        renderPreflight();
+        renderGenerationPreflightBanners();
+        renderProductionSafetyBanner();
+        updateActionAvailability();
+        syncRuleScopeFields();
+        renderCatalogSelectionSummary();
+        renderPriceListSelectionSummary();
+      }
+
+      function getSelectedCatalogGroupNames() {
+        return Object.keys(selectedCatalogGroups).filter(groupName => !!selectedCatalogGroups[groupName]).sort((a, b) => a.localeCompare(b));
+      }
+
+      function renderCatalogSelectionSummary() {
+        const selectedGroups = getSelectedCatalogGroupNames();
+        const node = document.getElementById('catalogSelectionSummary');
+        if (!node) return;
+        node.textContent = selectedGroups.length
+          ? (selectedGroups.length + ' catalog product group' + (selectedGroups.length === 1 ? '' : 's') + ' selected.')
+          : 'No catalog groups selected.';
+      }
+
+      function getSelectedPriceListGroupNames() {
+        return Object.keys(selectedPriceListGroups).filter(groupName => !!selectedPriceListGroups[groupName]).sort((a, b) => a.localeCompare(b));
+      }
+
+      function renderPriceListSelectionSummary() {
+        const selectedGroups = getSelectedPriceListGroupNames();
+        const node = document.getElementById('priceListSelectionSummary');
+        if (!node) return;
+        node.textContent = selectedGroups.length
+          ? (selectedGroups.length + ' price-list product group' + (selectedGroups.length === 1 ? '' : 's') + ' selected.')
+          : 'No price-list groups selected.';
+      }
+
+      function renderOverview() {
+        const overview = workflowData.overview || {};
+        const summary = overview.summary || {};
+        const groups = overview.groups || [];
+
+        document.getElementById('overviewMetrics').innerHTML = [
+          buildMetricCard('Active SKUs', formatNumber(summary.activeSkuCount), 'of ' + formatNumber(summary.totalSkuCount) + ' total'),
+          buildMetricCard('Active Product Groups', formatNumber(summary.activeProductGroups), 'of ' + formatNumber(summary.totalProductGroups) + ' configured'),
+          buildMetricCard('Active PLCs', formatNumber(summary.activePlcCount), summary.latestPricingRun ? ('Last repricing: ' + summary.latestPricingRun) : 'No repricing log yet')
+        ].join('');
+
+        renderWorkflowSteps();
+        renderLastRunSummary();
+
+        if (!groups.length) {
+          document.getElementById('overviewGroupTable').innerHTML = '<div class="hint">No product-group overview data found.</div>';
+          return;
+        }
+
+        document.getElementById('overviewGroupTable').innerHTML = '' +
+          '<table class="overview-table">' +
+            '<thead>' +
+              '<tr>' +
+                '<th>Product Group</th>' +
+                '<th>SKUs</th>' +
+                '<th>PLCs</th>' +
+                '<th>Rules</th>' +
+                '<th>Last Price File</th>' +
+                '<th>Last Catalog PDF</th>' +
+              '</tr>' +
+            '</thead>' +
+            '<tbody>' +
+              groups.map(group => {
+                const plcPills = (group.plcLabels || []).length
+                  ? '<div class="pill-list">' + group.plcLabels.map(plc => '<span class="pill">' + escapeHtml(plc) + '</span>').join('') + '</div>'
+                  : '<span class="hint">None</span>';
+                return '' +
+                  '<tr>' +
+                    '<td><strong>' + escapeHtml(group.productGroup) + '</strong></td>' +
+                    '<td>' + escapeHtml(formatNumber(group.activeSkuCount)) + ' active<br><span class="hint">' + escapeHtml(formatNumber(group.totalSkuCount)) + ' total</span></td>' +
+                    '<td>' + plcPills + '</td>' +
+                    '<td>' + escapeHtml(formatNumber(group.activeRuleCount)) + '</td>' +
+                    '<td>' + escapeHtml(group.lastPriceFileAt || 'Never') + '</td>' +
+                    '<td>' + escapeHtml(group.lastCatalogAt || 'Never') + '</td>' +
+                  '</tr>';
+              }).join('') +
+            '</tbody>' +
+          '</table>';
+      }
+
+      function renderWorkflowSteps() {
+        const preflight = workflowData.preflight || { ready: true, errorCount: 0, warningCount: 0 };
+        const overview = workflowData.overview || {};
+        const summary = overview.summary || {};
+        const productionStatus = workflowData.productionStatus || null;
+        const hasCompletedRun = !!(productionStatus && (productionStatus.completedAt || productionStatus.completed));
+        const hasFailures = !!(productionStatus && productionStatus.failed && productionStatus.failed.length);
+
+        document.getElementById('workflowSteps').innerHTML = [
+          buildWorkflowStep('1. Review Overview', 'Check workbook size, active groups, and the last production summary before making changes.', 'Ready', 'good'),
+          buildWorkflowStep('2. Run Preflight', preflight.ready ? 'Workbook passed blocking validation checks.' : 'Resolve blocking issues before queuing production.', preflight.ready ? 'Passed' : (preflight.errorCount + ' Errors'), preflight.ready ? 'good' : 'bad'),
+          buildWorkflowStep('3. Recalculate Pricing', summary.latestPricingRun ? ('Last run: ' + summary.latestPricingRun) : 'Recalculate pricing after rule or source-price changes.', summary.latestPricingRun ? 'Done' : 'Pending', summary.latestPricingRun ? 'good' : 'warn'),
+          buildWorkflowStep('4. Generate Outputs', hasCompletedRun ? (hasFailures ? 'Latest run finished with failures. Use Maintenance to rerun failed jobs.' : 'Latest run completed successfully.') : 'Queue price lists and catalogs after preflight is clean. Paired carton counts are normalized automatically during generation.', hasCompletedRun ? (hasFailures ? 'Attention' : 'Done') : 'Ready', hasCompletedRun ? (hasFailures ? 'warn' : 'good') : 'good')
+        ].join('');
+      }
+
+      function buildWorkflowStep(title, copy, badge, tone) {
+        return '' +
+          '<div class="workflow-step">' +
+            '<div>' +
+              '<div class="workflow-step-title">' + escapeHtml(title) + '</div>' +
+              '<div class="workflow-step-copy">' + escapeHtml(copy) + '</div>' +
+            '</div>' +
+            '<span class="workflow-step-badge ' + escapeHtml(tone || 'good') + '">' + escapeHtml(badge || '') + '</span>' +
+          '</div>';
+      }
+
+      function renderLastRunSummary() {
+        const status = workflowData.productionStatus || null;
+        const node = document.getElementById('lastRunSummary');
+
+        if (!status) {
+          node.innerHTML = '<div class="hint">No production summary is available yet.</div>';
+          return;
+        }
+
+        const failed = status.failed || [];
+        const succeeded = status.succeeded !== undefined ? status.succeeded : (status.completed || 0);
+        const failedCount = status.failedCount !== undefined ? status.failedCount : failed.length;
+
+        node.innerHTML = '' +
+          '<div class="metric-grid">' +
+            buildMetricCard('Mode', status.mode || 'Unknown', 'Run ID: ' + (status.runId || '')) +
+            buildMetricCard('Succeeded', formatNumber(succeeded), 'Successful jobs') +
+            buildMetricCard('Failed', formatNumber(failedCount), failedCount ? 'Review or rerun from Maintenance' : 'No failed jobs') +
+            buildMetricCard('Completed At', status.completedAt || status.updatedAt || 'In progress', '') +
+          '</div>' +
+          '<div style="margin-top:10px;">' +
+            (failed.length
+              ? '<div class="issue-list">' + failed.map(entry => {
+                  return '' +
+                    '<div class="issue issue-error">' +
+                      '<div class="issue-head">' +
+                        '<div class="issue-scope">' + escapeHtml(entry.productGroup || entry.fileName || entry.type || 'Job') + '</div>' +
+                        '<span class="issue-badge error">FAILED</span>' +
+                      '</div>' +
+                      '<div>' + escapeHtml(entry.fileName || '') + '</div>' +
+                      '<div class="hint">' + escapeHtml(entry.message || 'No failure detail captured.') + '</div>' +
+                    '</div>';
+                }).join('') + '</div>'
+              : '<div class="hint">The most recent production run has no failed jobs.</div>') +
+          '</div>';
+      }
+
+      function renderPreflight() {
+        const preflight = workflowData.preflight || { ready: true, errorCount: 0, warningCount: 0, issueCount: 0, issues: [] };
+
+        document.getElementById('preflightMetrics').innerHTML = [
+          buildMetricCard('Status', preflight.ready ? 'Ready' : 'Blocked', preflight.ready ? 'No blocking issues found' : 'Resolve blocking issues before production'),
+          buildMetricCard('Errors', formatNumber(preflight.errorCount), 'Blocking issues'),
+          buildMetricCard('Warnings', formatNumber(preflight.warningCount), 'Review before production'),
+          buildMetricCard('Total Issues', formatNumber(preflight.issueCount), 'Across workbook and config')
+        ].join('');
+
+        const issuesNode = document.getElementById('preflightIssues');
+        if (!preflight.issues || !preflight.issues.length) {
+          issuesNode.innerHTML = '<div class="hint">No preflight issues found.</div>';
+          return;
+        }
+
+        issuesNode.innerHTML = preflight.issues.map(issue => {
+          return '' +
+            '<div class="issue issue-' + escapeHtml(issue.severity) + '">' +
+              '<div class="issue-head">' +
+                '<div class="issue-scope">' + escapeHtml(issue.scope) + '</div>' +
+                '<span class="issue-badge ' + escapeHtml(issue.severity) + '">' + escapeHtml(String(issue.severity || '').toUpperCase()) + '</span>' +
+              '</div>' +
+              '<div>' + escapeHtml(issue.message) + '</div>' +
+              (issue.recommendation ? '<div class="hint">' + escapeHtml(issue.recommendation) + '</div>' : '') +
+            '</div>';
+        }).join('');
+      }
+
+      function renderGenerationPreflightBanners() {
+        const preflight = workflowData.preflight || { ready: true, errorCount: 0, warningCount: 0 };
+        const bannerHtml = preflight.ready
+          ? (preflight.warningCount
+              ? '<div class="notice-banner">Ready to run. ' + escapeHtml(String(preflight.warningCount)) + ' warning(s) to review.</div>'
+              : '<div class="notice-banner">Ready to run.</div>')
+          : '<div class="notice-banner error">Generation blocked. Fix ' + escapeHtml(String(preflight.errorCount)) + ' issue(s) in Preflight.</div>';
+
+        document.getElementById('priceListPreflightBanner').innerHTML = bannerHtml;
+        document.getElementById('catalogPreflightBanner').innerHTML = bannerHtml;
+      }
+
+      function renderProductionSafetyBanner() {
+        const node = document.getElementById('productionSafetyBanner');
+        if (!node) return;
+
+        const status = workflowData && workflowData.productionStatus;
+        if (!isProductionStatusActive(status)) {
+          node.innerHTML = '';
+          return;
+        }
+
+        const nextJob = status && status.jobs && status.jobs[status.nextJobIndex] ? status.jobs[status.nextJobIndex] : null;
+        const activeLabel = nextJob ? getJobLabel(nextJob) : 'production run';
+        node.innerHTML =
+          '<div class="notice-banner">' +
+            '<strong>Active production run:</strong> ' + escapeHtml(activeLabel) + '. ' +
+            'Wait for it to finish before starting another run. ' +
+            'Use Refresh Production Status or Cancel Active Production Run if needed.' +
+          '</div>';
+      }
+
+      function updateActionAvailability() {
+        const preflight = workflowData.preflight || { ready: true };
+        const blockGeneration = !preflight.ready;
+
+        document.querySelectorAll('[data-action]').forEach(button => {
+          const action = button.dataset.action;
+          const isGenerationAction =
+            action === 'generateAllPriceLists' ||
+            action === 'generateAllCatalogs' ||
+            action === 'generatePriceList' ||
+            action === 'generateCatalog';
+
+          if (!isGenerationAction) return;
+
+          if (busy) return;
+
+          button.disabled = !!blockGeneration;
+          if (blockGeneration) {
+            button.title = 'Preflight has blocking errors. Resolve them on the Preflight tab before generation.';
+          }
+        });
+      }
+
+      function buildMetricCard(label, value, subvalue) {
+        return '' +
+          '<div class="metric-card">' +
+            '<div class="metric-label">' + escapeHtml(label) + '</div>' +
+            '<div class="metric-value">' + escapeHtml(value) + '</div>' +
+            '<div class="metric-subvalue">' + escapeHtml(subvalue || '') + '</div>' +
+          '</div>';
+      }
+
+      function formatNumber(value) {
+        return Number(value || 0).toLocaleString();
+      }
+
+      function formatPercent(value) {
+        if (value === null || value === undefined || value === '') return '';
+        return (Number(value) * 100).toFixed(2).replace(/\.00$/, '') + '%';
+      }
+
+      function getRuleScopeLabel(rule) {
+        if (rule.itemNumber) return 'Item Number';
+        if (rule.fittingType) return 'Fitting Type';
+        if (rule.plc) return 'PLC';
+        return 'Product Group';
+      }
+
+      function getRuleScopeKey(rule) {
+        if (rule.itemNumber) return 'item';
+        if (rule.fittingType) return 'fitting';
+        if (rule.plc) return 'plc';
+        return 'group';
+      }
+
+      function getRuleScopeHeading(scopeKey) {
+        if (scopeKey === 'item') return 'Item Number Rules';
+        if (scopeKey === 'fitting') return 'Fitting Type Rules';
+        if (scopeKey === 'plc') return 'PLC Rules';
+        return 'Product Group Rules';
+      }
+
+      function getRuleCssClass(scopeKey) {
+        if (scopeKey === 'item') return 'rule-item';
+        if (scopeKey === 'fitting') return 'rule-fitting';
+        if (scopeKey === 'plc') return 'rule-plc';
+        return 'rule-group';
+      }
+
+      function getFilteredPriceRules() {
+        const selectedGroup = document.getElementById('ruleDisplayGroup').value;
+        const searchText = String(document.getElementById('ruleSearch').value || '').trim().toLowerCase();
+        const statusFilter = document.getElementById('ruleStatusFilter').value;
+        return (workflowData.priceRules || []).filter(rule => {
+          if (selectedGroup && rule.productGroup !== selectedGroup) return false;
+          if (statusFilter === 'active' && !rule.active) return false;
+          if (statusFilter === 'inactive' && rule.active) return false;
+          if (!searchText) return true;
+
+          const haystack = [
+            rule.productGroup,
+            rule.plc,
+            rule.fittingType,
+            rule.itemNumber,
+            rule.variant,
+            rule.variant2,
+            rule.notes,
+            getRuleScopeLabel(rule),
+            buildRuleFilterSummary(rule),
+            formatPercent(rule.increasePct),
+            rule.active ? 'active' : 'inactive'
+          ].join(' ').toLowerCase();
+
+          return haystack.indexOf(searchText) !== -1;
+        });
+      }
+
+      function renderPriceRules() {
+        const rules = getFilteredPriceRules();
+        const list = document.getElementById('priceRuleList');
+
+        if (!rules.length) {
+          list.innerHTML = '<div class="hint">No rules found for the selected filter.</div>';
+          return;
+        }
+
+        const grouped = rules.reduce((map, rule) => {
+          const key = getRuleScopeKey(rule);
+          if (!map[key]) map[key] = [];
+          map[key].push(rule);
+          return map;
+        }, {});
+
+        const orderedKeys = ['group', 'plc', 'fitting', 'item'].filter(key => grouped[key] && grouped[key].length);
+
+        list.innerHTML = orderedKeys.map(scopeKey => {
+          return '' +
+            '<div class="rule-scope-group">' +
+              '<h3>' + escapeHtml(getRuleScopeHeading(scopeKey)) + '</h3>' +
+              grouped[scopeKey].map(rule => {
+                const detail = rule.itemNumber || rule.fittingType || rule.plc || rule.productGroup;
+                const filters = buildRuleFilterSummary(rule);
+                return '' +
+                  '<div class="rule ' + getRuleCssClass(scopeKey) + '">' +
+                    '<div><strong>' + escapeHtml(rule.productGroup) + '</strong></div>' +
+                    '<div>' + escapeHtml(getRuleScopeLabel(rule)) + ': ' + escapeHtml(detail) + '</div>' +
+                    (filters ? '<div>' + escapeHtml(filters) + '</div>' : '') +
+                    '<div>Increase: ' + escapeHtml(formatPercent(rule.increasePct)) + '</div>' +
+                    '<div>Status: ' + escapeHtml(rule.active ? 'Active' : 'Inactive') + '</div>' +
+                    (rule.notes ? '<div>Notes: ' + escapeHtml(rule.notes) + '</div>' : '') +
+                    '<div class="rule-actions">' +
+                      '<button class="rule-action" data-rule-toggle="' + escapeHtml(String(rule.rowNumber)) + '" data-rule-next-active="' + escapeHtml(rule.active ? 'false' : 'true') + '">' + escapeHtml(rule.active ? 'Disable' : 'Enable') + '</button>' +
+                      '<button class="rule-action" data-rule-edit="' + escapeHtml(String(rule.rowNumber)) + '">Edit</button>' +
+                      '<button class="rule-action danger" data-rule-remove="' + escapeHtml(String(rule.rowNumber)) + '">Remove</button>' +
+                    '</div>' +
+                  '</div>';
+              }).join('') +
+            '</div>';
+        }).join('');
+      }
+
+      function renderRuleHistory() {
+        const history = workflowData.ruleHistory || [];
+        const container = document.getElementById('priceRuleHistory');
+
+        if (!history.length) {
+          container.innerHTML = '<div class="hint">No recent rule activity logged yet.</div>';
+          return;
+        }
+
+        container.innerHTML = history.map(entry => {
+          return '' +
+            '<div class="rule-history-item">' +
+              '<div class="rule-history-meta">' + escapeHtml(entry.timestamp || '') + ' | ' + escapeHtml(entry.action || '') + '</div>' +
+              '<div><strong>' + escapeHtml(entry.productGroup || 'Price Rules') + '</strong></div>' +
+              (entry.message ? '<div>' + escapeHtml(entry.message) + '</div>' : '') +
+            '</div>';
+        }).join('');
+      }
+
+      function renderRuleInputOptions(selectedVariants, selectedVariant2s) {
+        const options = workflowData.priceRuleOptions || {};
+        const selectedGroup = document.getElementById('ruleProductGroup').value;
+        const selectedPlc = document.getElementById('rulePlc').value;
+        const selectedFittingType = document.getElementById('ruleFittingType').value;
+        const selectedItemNumber = document.getElementById('ruleItemNumber').value;
+        const scope = document.getElementById('ruleScope').value;
+        const skuIndex = options.skuIndex || [];
+
+        const baseRows = skuIndex.filter(row => {
+          if (scope === 'group' || scope === 'fittingType') {
+            if (selectedGroup && row.productGroup !== selectedGroup) return false;
+          }
+          if (scope === 'plc') {
+            if (selectedPlc && row.plc !== selectedPlc) return false;
+          }
+          if (scope === 'fittingType') {
+            if (selectedFittingType && row.fittingType !== selectedFittingType) return false;
+          }
+          if (scope === 'itemNumber') {
+            if (selectedItemNumber && row.itemNumber !== selectedItemNumber) return false;
+          }
+          return true;
+        });
+
+        const fittingTypes = Array.from(new Set(
+          skuIndex
+            .filter(row => !selectedGroup || row.productGroup === selectedGroup)
+            .map(row => row.fittingType)
+            .filter(Boolean)
+        )).sort((a, b) => a.localeCompare(b));
+
+        const plcs = Array.from(new Set(
+          skuIndex.map(row => row.plc).filter(Boolean)
+        )).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+        const itemNumbers = Array.from(new Set(
+          skuIndex.map(row => row.itemNumber).filter(Boolean)
+        )).sort((a, b) => a.localeCompare(b));
+
+        const variantOptions = collectVariantChoiceOptions(baseRows, 'variant', 'variantLabel');
+        const variant2Options = collectVariantChoiceOptions(baseRows, 'variant2', 'variant2Label');
+
+        document.getElementById('rulePlc').innerHTML =
+          '<option value="">Select PLC</option>' +
+          plcs.map(plc => '<option value="' + escapeHtml(plc) + '">' + escapeHtml(formatPlcLabel(plc)) + '</option>').join('');
+
+        document.getElementById('ruleFittingType').innerHTML =
+          '<option value="">Select Fitting Type</option>' +
+          fittingTypes.map(type => '<option value="' + escapeHtml(type) + '">' + escapeHtml(type) + '</option>').join('');
+
+        document.getElementById('ruleItemNumbers').innerHTML =
+          itemNumbers.map(itemNumber => '<option value="' + escapeHtml(itemNumber) + '"></option>').join('');
+
+        setSelectValueIfPresent('rulePlc', selectedPlc);
+        setSelectValueIfPresent('ruleFittingType', selectedFittingType);
+        document.getElementById('ruleItemNumber').value = selectedItemNumber;
+
+        renderVariantChoices('ruleVariantOptions', variantOptions, selectedVariants !== undefined ? selectedVariants : getSelectedChoiceValues('ruleVariantOptions'));
+        renderVariantChoices('ruleVariant2Options', variant2Options, selectedVariant2s !== undefined ? selectedVariant2s : getSelectedChoiceValues('ruleVariant2Options'));
+        document.getElementById('ruleVariantLabel').textContent = getAxisLabelFromRows(baseRows, 'variantAxis', variantOptions.map(option => option.value), false);
+        document.getElementById('ruleVariant2Label').textContent = getAxisLabelFromRows(baseRows, 'variant2Axis', variant2Options.map(option => option.value), true);
+        syncRuleScopeFields();
+      }
+
+      function syncRuleScopeFields() {
+        const scope = document.getElementById('ruleScope').value;
+        const showGroup = scope === 'group' || scope === 'fittingType';
+        const hasVariantChoices = document.getElementById('ruleVariantOptions').children.length > 0;
+        const hasVariant2Choices = document.getElementById('ruleVariant2Options').children.length > 0;
+        document.getElementById('ruleProductGroup').parentElement.style.display = showGroup ? '' : 'none';
+        document.getElementById('rulePlcField').style.display = scope === 'plc' ? '' : 'none';
+        document.getElementById('ruleFittingField').style.display = scope === 'fittingType' ? '' : 'none';
+        document.getElementById('ruleItemField').style.display = scope === 'itemNumber' ? '' : 'none';
+        document.getElementById('ruleVariantField').style.display = scope === 'itemNumber' || !hasVariantChoices ? 'none' : '';
+        document.getElementById('ruleVariant2Field').style.display = scope === 'itemNumber' || !hasVariant2Choices ? 'none' : '';
+      }
+
+      function collectRulePayload() {
+        return {
+          rowNumber: editingRuleRowNumber,
+          scope: document.getElementById('ruleScope').value,
+          productGroup: document.getElementById('ruleProductGroup').value,
+          plc: document.getElementById('rulePlc').value,
+          fittingType: document.getElementById('ruleFittingType').value,
+          itemNumber: document.getElementById('ruleItemNumber').value,
+          variants: getSelectedChoiceValues('ruleVariantOptions'),
+          variant2s: getSelectedChoiceValues('ruleVariant2Options'),
+          increasePct: document.getElementById('ruleIncreasePct').value,
+          notes: document.getElementById('ruleNotes').value,
+          active: document.getElementById('ruleActive').checked
+        };
+      }
+
+      function resetRuleEditor() {
+        editingRuleRowNumber = null;
+        document.getElementById('ruleScope').value = 'group';
+        if (document.getElementById('ruleProductGroup').options.length) {
+          document.getElementById('ruleProductGroup').selectedIndex = 0;
+        }
+        document.getElementById('rulePlc').value = '';
+        document.getElementById('ruleFittingType').value = '';
+        document.getElementById('ruleItemNumber').value = '';
+        document.getElementById('ruleIncreasePct').value = '';
+        document.getElementById('ruleNotes').value = '';
+        document.getElementById('ruleActive').checked = true;
+        renderRuleInputOptions([], []);
+        updateRuleEditorState();
+      }
+
+      function updateRuleEditorState() {
+        const isEditing = !!editingRuleRowNumber;
+        document.getElementById('ruleEditorStatus').textContent = isEditing
+          ? ('Editing rule from row ' + editingRuleRowNumber + '.')
+          : 'Creating a new rule.';
+        document.getElementById('saveRuleButton').textContent = isEditing ? 'Update Rule' : 'Save Rule';
+        document.getElementById('saveRuleAndRecalcButton').textContent = isEditing ? 'Update Rule + Recalculate Pricing' : 'Save Rule + Recalculate Pricing';
+        document.getElementById('cancelRuleEditButton').style.display = isEditing ? '' : 'none';
+      }
+
+      function beginRuleEdit(rowNumber) {
+        const rule = (workflowData.priceRules || []).find(entry => Number(entry.rowNumber) === Number(rowNumber));
+        if (!rule) {
+          setStatus('Selected price rule was not found.', 'error');
+          return;
+        }
+
+        editingRuleRowNumber = Number(rule.rowNumber);
+        document.getElementById('ruleScope').value = rule.itemNumber ? 'itemNumber' : (rule.fittingType ? 'fittingType' : (rule.plc ? 'plc' : 'group'));
+        document.getElementById('ruleProductGroup').value = rule.productGroup || '';
+        renderRuleInputOptions(rule.variant ? [rule.variant] : [], rule.variant2 ? [rule.variant2] : []);
+        setSelectValueIfPresent('rulePlc', rule.plc || '');
+        setSelectValueIfPresent('ruleFittingType', rule.fittingType || '');
+        document.getElementById('ruleItemNumber').value = rule.itemNumber || '';
+        document.getElementById('ruleIncreasePct').value = formatPercent(rule.increasePct).replace('%', '');
+        document.getElementById('ruleNotes').value = rule.notes || '';
+        document.getElementById('ruleActive').checked = !!rule.active;
+        renderRuleInputOptions(rule.variant ? [rule.variant] : [], rule.variant2 ? [rule.variant2] : []);
+        updateRuleEditorState();
+      }
+
+      function toggleRuleActive(rowNumber, nextActive) {
+        setBusy(true);
+        setStatus((nextActive ? 'Enabling' : 'Disabling') + ' rule...', 'busy');
+
+        google.script.run
+          .withSuccessHandler(result => {
+            setBusy(false);
+            if (editingRuleRowNumber && Number(editingRuleRowNumber) === Number(rowNumber)) {
+              document.getElementById('ruleActive').checked = !!nextActive;
+            }
+            setStatus((result && result.message) || 'Rule status updated.', 'success');
+            refreshData();
+          })
+          .withFailureHandler(error => {
+            setBusy(false);
+            setStatus(error && error.message ? error.message : String(error), 'error');
+          })
+          .setPriceRuleActiveFromSidebar(rowNumber, nextActive);
+      }
+
+      function bulkSetFilteredRulesActive(nextActive) {
+        const filteredRules = getFilteredPriceRules();
+        if (!filteredRules.length) {
+          setStatus('No filtered rules available for bulk update.', 'error');
+          return;
+        }
+
+        const rowNumbers = filteredRules.map(rule => Number(rule.rowNumber)).filter(Boolean);
+        const actionLabel = nextActive ? 'enable' : 'disable';
+        if (!confirm((nextActive ? 'Enable ' : 'Disable ') + rowNumbers.length + ' filtered rule' + (rowNumbers.length === 1 ? '' : 's') + '?')) return;
+
+        setBusy(true);
+        setStatus((nextActive ? 'Enabling' : 'Disabling') + ' filtered rules...', 'busy');
+
+        google.script.run
+          .withSuccessHandler(result => {
+            setBusy(false);
+            if (editingRuleRowNumber) {
+              const editingRuleStillVisible = rowNumbers.indexOf(Number(editingRuleRowNumber)) !== -1;
+              if (editingRuleStillVisible) {
+                document.getElementById('ruleActive').checked = !!nextActive;
+              }
+            }
+            setStatus((result && result.message) || ('Filtered rules updated.'), 'success');
+            refreshData();
+          })
+          .withFailureHandler(error => {
+            setBusy(false);
+            setStatus(error && error.message ? error.message : String(error), 'error');
+          })
+          .setPriceRulesActiveFromSidebar(rowNumbers, nextActive);
+      }
+
+      function removeRule(rowNumber) {
+        if (!confirm('Remove this price rule?')) return;
+
+        setBusy(true);
+        setStatus('Removing rule...', 'busy');
+
+        google.script.run
+          .withSuccessHandler(result => {
+            setBusy(false);
+            if (editingRuleRowNumber && Number(editingRuleRowNumber) === Number(rowNumber)) {
+              resetRuleEditor();
+            }
+            setStatus((result && result.message) || 'Rule removed.', 'success');
+            refreshData();
+          })
+          .withFailureHandler(error => {
+            setBusy(false);
+            setStatus(error && error.message ? error.message : String(error), 'error');
+          })
+          .deletePriceRuleFromSidebar(rowNumber);
+      }
+
+      function buildRuleFilterSummary(rule) {
+        const parts = [];
+        if (rule.variant) parts.push(guessVariantAxisLabel([rule.variant], false) + ': ' + getDisplayRuleValue(rule.variant));
+        if (rule.variant2) parts.push(guessVariantAxisLabel([rule.variant2], true) + ': ' + getDisplayRuleValue(rule.variant2));
+        return parts.join(' | ');
+      }
+
+      function collectVariantChoiceOptions(rows, fieldName, labelFieldName) {
+        const lookup = {};
+        (rows || []).forEach(row => {
+          const value = String((row && row[fieldName]) || '').trim();
+          if (!value) return;
+          lookup[value] = String((row && row[labelFieldName]) || '').trim() || getDisplayRuleValue(value);
+        });
+
+        return Object.keys(lookup)
+          .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+          .map(value => ({
+            value: value,
+            label: lookup[value]
+          }));
+      }
+
+      function getAxisLabelFromRows(rows, fieldName, values, isSecondary) {
+        const explicit = Array.from(new Set((rows || [])
+          .map(row => String((row && row[fieldName]) || '').trim())
+          .filter(Boolean)));
+        if (explicit.length === 1) return explicit[0];
+        return guessVariantAxisLabel(values, isSecondary);
+      }
+
+      function renderVariantChoices(containerId, options, selectedValues) {
+        const container = document.getElementById(containerId);
+        const selectedLookup = (selectedValues || []).reduce((map, value) => {
+          map[value] = true;
+          return map;
+        }, {});
+
+        container.innerHTML = (options || []).map(option => {
+          const checked = selectedLookup[option.value] ? ' checked' : '';
+          return '' +
+            '<label class="choice-item">' +
+              '<input type="checkbox" data-choice-group="' + escapeHtml(containerId) + '" value="' + escapeHtml(option.value) + '"' + checked + '>' +
+              '<span>' + escapeHtml(option.label) + '</span>' +
+            '</label>';
+        }).join('');
+      }
+
+      function getSelectedChoiceValues(containerId) {
+        return Array.from(document.querySelectorAll('#' + containerId + ' input[type="checkbox"]:checked'))
+          .map(node => node.value)
+          .filter(Boolean);
+      }
+
+      function setSelectValueIfPresent(id, value) {
+        const node = document.getElementById(id);
+        if (!node) return;
+        const exists = Array.from(node.options).some(option => option.value === value);
+        if (exists) {
+          node.value = value;
+        }
+      }
+
+      function getDisplayRuleValue(value) {
+        const normalized = String(value || '').trim().toLowerCase();
+        if (normalized === 'plain' || normalized === 'steel') return 'Plain (Steel)';
+        if (normalized === 'plated' || normalized === 'zinc plated') return 'Zinc Plated';
+        if (normalized === 'black') return 'Black';
+        if (normalized === 'galvanized') return 'Galvanized';
+        if (normalized === '304') return '304';
+        if (normalized === '316') return '316';
+        return String(value || '').trim();
+      }
+
+      function guessVariantAxisLabel(values, isSecondary) {
+        const normalized = (values || []).map(value => String(value || '').trim().toLowerCase()).filter(Boolean);
+        if (!normalized.length) return isSecondary ? 'Secondary Variant' : 'Variant';
+        if (normalized.some(value => value === '304' || value === '316')) return 'Stainless Grade';
+        if (normalized.some(value => value === 'black' || value === 'galvanized' || value === 'plain' || value === 'steel' || value === 'zinc plated' || value === 'plated')) return 'Finish';
+        if (normalized.some(value => value.indexOf('sch') !== -1 || value.indexOf('s40') !== -1 || value.indexOf('s80') !== -1 || value.indexOf('a106') !== -1 || value.indexOf('seamless') !== -1 || value.indexOf('welded') !== -1)) return 'Schedule / Type';
+        if (normalized.some(value => value.indexOf('150') !== -1 || value.indexOf('300') !== -1)) return 'Class';
+        if (normalized.some(value => value.indexOf('thread') !== -1 || value.indexOf('socket') !== -1 || value.indexOf('sweat') !== -1 || value.indexOf('flare') !== -1)) return 'Connection';
+        return isSecondary ? 'Secondary Variant' : 'Variant';
+      }
+
+      function formatPlcLabel(value) {
+        const trimmed = String(value || '').trim();
+        if (!trimmed) return '';
+        return /^\d+$/.test(trimmed) ? trimmed.padStart(3, '0') : trimmed;
+      }
+
+      function saveRule(shouldRecalculate) {
+        setBusy(true);
+        setStatus(editingRuleRowNumber ? 'Updating rule...' : 'Saving rule...', 'busy');
+
+        google.script.run
+          .withSuccessHandler(result => {
+            setBusy(false);
+            resetRuleEditor();
+            setStatus((result && result.message) || 'Rule saved.', 'success');
+            refreshData();
+          })
+          .withFailureHandler(error => {
+            setBusy(false);
+            setStatus(error && error.message ? error.message : String(error), 'error');
+          })
+          .savePriceRuleFromSidebar(collectRulePayload(), shouldRecalculate);
+      }
+
+      function formatProductionStatus(status) {
+        if (!status) return 'No active production run.';
+
+        const lines = [];
+        const isActive = isProductionStatusActive(status);
+        const nextJob = status.nextJobIndex !== undefined && status.jobs && status.jobs[status.nextJobIndex]
+          ? status.jobs[status.nextJobIndex]
+          : null;
+        const runPercent = Math.round(getRunPercent(status));
+        lines.push('Mode: ' + (status.mode || ''));
+        lines.push('Run ID: ' + (status.runId || ''));
+
+        if (status.status === 'cancelled') {
+          lines.push('Status: Cancelled');
+        } else if (status.status === 'completed_with_errors') {
+          lines.push('Status: Completed with errors');
+        } else if (status.status === 'completed') {
+          lines.push('Status: Completed');
+        } else if (isActive) {
+          lines.push('Status: Active');
+        }
+
+        if (status.totalJobs !== undefined) {
+          lines.push('Progress: ' + (status.completed || 0) + ' / ' + status.totalJobs + ' jobs complete');
+        }
+
+        if (isActive && nextJob) {
+          const jobPercent = Math.round(getLiveJobPercent(nextJob, status));
+          const jobDetail = getJobDetail(nextJob);
+          lines.push('Current Job: ' + getJobLabel(nextJob));
+          lines.push('Current Progress: ' + jobPercent + '%' + (jobDetail ? ' | ' + jobDetail : ''));
+          const currentElapsedMs = getCurrentJobElapsedMs(status);
+          const currentEta = getCurrentJobEtaLabel(status);
+          if (currentElapsedMs || currentEta) {
+            lines.push(
+              'Current Timing: ' +
+              (currentElapsedMs ? 'Elapsed ' + formatDurationShort(currentElapsedMs) : 'Elapsed 0s') +
+              (currentEta ? ' | ' + currentEta : '')
+            );
+          }
+          lines.push('Run Progress: ' + runPercent + '%');
+        }
+
+        if (isActive) {
+          const elapsedMs = getRunElapsedMs(status);
+          if (elapsedMs) lines.push('Elapsed ' + formatDurationShort(elapsedMs));
+        }
+
+        if (isActive) {
+          const eta = getEtaLabel(status);
+          if (eta) lines.push(eta);
+        }
+
+        if (isActive && status.jobs) {
+          const upcomingJob = status.jobs[(Number(status.nextJobIndex) || 0) + 1] || null;
+          if (upcomingJob) lines.push('Up Next: ' + getJobLabel(upcomingJob));
+        }
+
+        if (status.failed && status.failed.length) {
+          lines.push('Failed Jobs: ' + status.failed.length);
+        }
+
+        return lines.join('\n');
+      }
+
+      function handleAction(action, productGroup) {
+        setBusy(true);
+        setStatus(getBusyMessage(action, productGroup), 'busy');
+        progressState.operation.displayedPercent = 0;
+        progressState.run.displayedPercent = 0;
+        setProgressTarget('operation', 0, 'Current Operation: ' + getBusyMessage(action, productGroup), 'Starting', true);
+        setProgressTarget('run', 0, 'Production Run: Starting', 'Starting', true);
+
+        google.script.run
+          .withSuccessHandler(result => {
+            setBusy(false);
+            workflowData.productionStatus = result && result.status !== undefined ? result.status : workflowData.productionStatus;
+            if (result && result.preflight) {
+              workflowData.preflight = result.preflight;
+            }
+
+            let message = (result && result.message) || 'Done.';
+            if (result && result.status) {
+              message += '\n\n' + formatProductionStatus(result.status);
+              startStatusPolling();
+            }
+            if (result && result.preview) {
+              message += '\n\nPreview summary:\n' + JSON.stringify(result.preview, null, 2);
+            }
+
+            setStatus(message, 'success');
+            refreshData();
+          })
+          .withFailureHandler(error => {
+            setBusy(false);
+            setStatus(error && error.message ? error.message : String(error), 'error');
+          })
+          .runMsiAutomationAction(action, productGroup || '');
+      }
+
+      function generateSelectedCatalogs() {
+        const selectedGroups = getSelectedCatalogGroupNames();
+        if (!selectedGroups.length) {
+          setStatus('Select at least one catalog product group first.', 'error');
+          return;
+        }
+
+        setBusy(true);
+        setStatus('Queueing selected catalog PDFs...', 'busy');
+        progressState.operation.displayedPercent = 0;
+        progressState.run.displayedPercent = 0;
+        setProgressTarget('operation', 0, 'Current Operation: Queueing selected catalog PDFs...', 'Starting', true);
+        setProgressTarget('run', 0, 'Production Run: Starting', 'Starting', true);
+
+        google.script.run
+          .withSuccessHandler(result => {
+            setBusy(false);
+            workflowData.productionStatus = result && result.status !== undefined ? result.status : workflowData.productionStatus;
+            let message = (result && result.message) || 'Selected catalog run queued.';
+            if (result && result.status) {
+              message += '\n\n' + formatProductionStatus(result.status);
+              startStatusPolling();
+            }
+            setStatus(message, 'success');
+            refreshData();
+          })
+          .withFailureHandler(error => {
+            setBusy(false);
+            setStatus(error && error.message ? error.message : String(error), 'error');
+          })
+          .queueSelectedCatalogGroupsFromSidebar(selectedGroups);
+      }
+
+      function clearSelectedCatalogs() {
+        selectedCatalogGroups = {};
+        renderGroups();
+      }
+
+      function generateSelectedPriceLists() {
+        const selectedGroups = getSelectedPriceListGroupNames();
+        if (!selectedGroups.length) {
+          setStatus('Select at least one price-list product group first.', 'error');
+          return;
+        }
+
+        setBusy(true);
+        setStatus('Queueing selected price lists...', 'busy');
+        progressState.operation.displayedPercent = 0;
+        progressState.run.displayedPercent = 0;
+        setProgressTarget('operation', 0, 'Current Operation: Queueing selected price lists...', 'Starting', true);
+        setProgressTarget('run', 0, 'Production Run: Starting', 'Starting', true);
+
+        google.script.run
+          .withSuccessHandler(result => {
+            setBusy(false);
+            workflowData.productionStatus = result && result.status !== undefined ? result.status : workflowData.productionStatus;
+            let message = (result && result.message) || 'Selected price-list run queued.';
+            if (result && result.status) {
+              message += '\n\n' + formatProductionStatus(result.status);
+              startStatusPolling();
+            }
+            setStatus(message, 'success');
+            refreshData();
+          })
+          .withFailureHandler(error => {
+            setBusy(false);
+            setStatus(error && error.message ? error.message : String(error), 'error');
+          })
+          .queueSelectedPriceListGroupsFromSidebar(selectedGroups);
+      }
+
+      function clearSelectedPriceLists() {
+        selectedPriceListGroups = {};
+        renderGroups();
+      }
+
+      function getBusyMessage(action, productGroup) {
+        if (action === 'generateCatalog') return 'Working on ' + productGroup + ' catalog creation...';
+        if (action === 'generatePriceList') return 'Working on ' + productGroup + ' price-list creation...';
+        if (action === 'generateAllCatalogs') return 'Queueing all active catalog PDFs...';
+        if (action === 'generateAllPriceLists') return 'Queueing all active price lists...';
+        if (action === 'generateAll') return 'Queueing all active catalogs and price lists...';
+        if (action === 'previewCatalog') return 'Building preview for ' + productGroup + ' catalog layout...';
+        if (action === 'calculatePricing') return 'Recalculating pricing...';
+        if (action === 'productionStatus') return 'Refreshing production status...';
+        if (action === 'cancelProduction') return 'Cancelling active production run...';
+        return 'Working...';
+      }
+
+      function getJobLabel(job) {
+        if (!job) return '';
+        if (job.type === 'catalog_pdf') return job.productGroup + ' catalog PDF';
+        if (job.type === 'price_file') return job.productGroup + ' price list';
+        if (job.type === 'pricing_calc') return 'Pricing recalculation';
+        if (job.type === 'repair_cartons') return 'Normalize paired carton counts';
+        return (job.fileName || job.type || 'Job');
+      }
+
+      function getJobDetail(job) {
+        if (!job) return '';
+        if (job.type === 'catalog_pdf') {
+          const totalPages = Number(job.totalPages) || 0;
+          const nextPageIndex = Number(job.progressPageIndex !== undefined ? job.progressPageIndex : job.nextPageIndex) || 0;
+          const stage = String(job.stage || 'init');
+          if (stage === 'append_pages' && totalPages) {
+            return 'Page ' + Math.min(totalPages, nextPageIndex + 1) + ' of ' + totalPages;
+          }
+          if (stage === 'append_terms') return 'Adding terms page';
+          if (stage === 'export_pdf') return 'Exporting PDF';
+          return 'Preparing deck';
+        }
+
+        if (job.type === 'pricing_calc') {
+          const totalRows = Number(job.totalRows) || 0;
+          const processedRows = Number(job.processedRows) || 0;
+          return totalRows ? (processedRows + ' of ' + totalRows + ' rows') : 'Preparing rows';
+        }
+
+        if (job.type === 'repair_cartons') {
+          const totalGroups = Number(job.totalGroups) || 0;
+          const nextGroupIndex = Number(job.nextGroupIndex) || 0;
+          return totalGroups ? (Math.min(totalGroups, nextGroupIndex) + ' of ' + totalGroups + ' pair groups') : 'Preparing pair groups';
+        }
+
+        return '';
+      }
+
+      function getJobPercent(job) {
+        if (!job) return 0;
+        if (job.type === 'catalog_pdf') {
+          const totalPages = Number(job.totalPages) || 0;
+          const nextPageIndex = Number(job.progressPageIndex !== undefined ? job.progressPageIndex : job.nextPageIndex) || 0;
+          const stage = String(job.stage || 'init');
+          if (!totalPages) return stage === 'export_pdf' ? 95 : 10;
+          if (stage === 'init') return 5;
+          if (stage === 'append_pages') return Math.min(90, (nextPageIndex / totalPages) * 85 + 5);
+          if (stage === 'append_terms') return 93;
+          if (stage === 'export_pdf') return 97;
+          return 100;
+        }
+
+        if (job.type === 'pricing_calc') {
+          const totalRows = Number(job.totalRows) || 0;
+          const processedRows = Number(job.processedRows) || 0;
+          return totalRows ? (processedRows / totalRows) * 100 : 5;
+        }
+
+        if (job.type === 'repair_cartons') {
+          const totalGroups = Number(job.totalGroups) || 0;
+          const nextGroupIndex = Number(job.nextGroupIndex) || 0;
+          return totalGroups ? (nextGroupIndex / totalGroups) * 100 : 5;
+        }
+
+        return 0;
+      }
+
+      function getJobElapsedMs(job, status) {
+        const startedAtValue = (job && job.startedAt) || (status && status.currentJobStartedAt) || '';
+        if (!startedAtValue) return 0;
+        const startedAt = new Date(startedAtValue).getTime();
+        if (!startedAt || isNaN(startedAt)) return 0;
+        return Math.max(0, Date.now() - startedAt);
+      }
+
+      function getCurrentJobElapsedMs(status) {
+        const nextJob = status && status.jobs && status.jobs[status.nextJobIndex] ? status.jobs[status.nextJobIndex] : null;
+        return getJobElapsedMs(nextJob, status);
+      }
+
+      function getCurrentJobProgressElapsedMs(job, status) {
+        if (!job) return getCurrentJobElapsedMs(status);
+        const anchor = job.progressAnchorAt || job.stageStartedAt || job.startedAt || status.currentJobStartedAt;
+        if (!anchor) return getCurrentJobElapsedMs(status);
+        const startedAt = new Date(anchor).getTime();
+        if (!startedAt || isNaN(startedAt)) return getCurrentJobElapsedMs(status);
+        return Math.max(0, Date.now() - startedAt);
+      }
+
+      function getRunElapsedMs(status) {
+        if (!status || !status.startedAt) return 0;
+        const startedAt = new Date(status.startedAt).getTime();
+        if (!startedAt || isNaN(startedAt)) return 0;
+        return Math.max(0, Date.now() - startedAt);
+      }
+
+      function getStatusFreshnessMs(status) {
+        if (!status || !status.updatedAt) return 0;
+        const updatedAt = new Date(status.updatedAt).getTime();
+        if (!updatedAt || isNaN(updatedAt)) return 0;
+        return Math.max(0, Date.now() - updatedAt);
+      }
+
+      function formatDurationShort(ms) {
+        const totalSeconds = Math.max(0, Math.round((Number(ms) || 0) / 1000));
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        if (hours > 0) return hours + 'h ' + String(minutes).padStart(2, '0') + 'm';
+        if (minutes > 0) return minutes + 'm ' + String(seconds).padStart(2, '0') + 's';
+        return seconds + 's';
+      }
+
+      function getRuntimeHistoryLookup(status) {
+        return status && status.runtimeStats ? status.runtimeStats : {};
+      }
+
+      function getCompletedRunJobDurations(status) {
+        if (!status || !status.jobs || !status.jobs.length) return [];
+        return status.jobs
+          .filter(job => job && Number(job.durationMs) > 0)
+          .map(job => ({
+            type: job.type || '',
+            productGroup: job.productGroup || '',
+            fileName: job.fileName || '',
+            durationMs: Number(job.durationMs) || 0
+          }));
+      }
+
+      function getCurrentRunAverageDurationMs(status, matcher) {
+        const completedJobs = getCompletedRunJobDurations(status)
+          .filter(entry => typeof matcher === 'function' ? matcher(entry) : true);
+        if (!completedJobs.length) return 0;
+        const total = completedJobs.reduce((sum, entry) => sum + entry.durationMs, 0);
+        return Math.round(total / completedJobs.length);
+      }
+
+      function getHistoricalJobDurationMs(job, status) {
+        if (!job) return 0;
+
+        const runtimeStats = getRuntimeHistoryLookup(status);
+        const type = String(job.type || '').trim();
+        const productGroup = String(job.productGroup || '').trim();
+        const fileName = String(job.fileName || '').trim();
+
+        const fileKey = [type, productGroup, fileName].join('|');
+        const groupKey = [type, productGroup].join('|');
+
+        if (runtimeStats.fileAverages && runtimeStats.fileAverages[fileKey]) {
+          return Number(runtimeStats.fileAverages[fileKey]) || 0;
+        }
+        if (runtimeStats.groupTypeAverages && runtimeStats.groupTypeAverages[groupKey]) {
+          return Number(runtimeStats.groupTypeAverages[groupKey]) || 0;
+        }
+
+        const runGroupAverage = getCurrentRunAverageDurationMs(status, entry =>
+          entry.type === type && entry.productGroup === productGroup
+        );
+        if (runGroupAverage) return runGroupAverage;
+
+        if (runtimeStats.typeAverages && runtimeStats.typeAverages[type]) {
+          return Number(runtimeStats.typeAverages[type]) || 0;
+        }
+
+        const runTypeAverage = getCurrentRunAverageDurationMs(status, entry => entry.type === type);
+        if (runTypeAverage) return runTypeAverage;
+
+        return getCurrentRunAverageDurationMs(status);
+      }
+
+      function blendEstimateMs(historicalMs, projectedMs, completionRatio) {
+        const historical = Math.max(0, Number(historicalMs) || 0);
+        const projected = Math.max(0, Number(projectedMs) || 0);
+        const ratio = Math.max(0, Math.min(1, Number(completionRatio) || 0));
+
+        if (historical && projected) {
+          const projectedWeight = Math.min(0.8, Math.max(0.15, ratio));
+          const historicalWeight = 1 - projectedWeight;
+          return Math.round((historical * historicalWeight) + (projected * projectedWeight));
+        }
+        return projected || historical || 0;
+      }
+
+      function getCurrentJobEstimatedTotalMs(status) {
+        if (!isProductionStatusActive(status)) return 0;
+
+        const nextJob = status && status.jobs && status.jobs[status.nextJobIndex] ? status.jobs[status.nextJobIndex] : null;
+        if (!nextJob) return 0;
+
+        const historicalMs = getHistoricalJobDurationMs(nextJob, status);
+        const elapsedMs = getCurrentJobElapsedMs(status);
+        const percent = Math.max(0, Math.min(0.995, getLiveJobPercent(nextJob, status) / 100));
+
+        if (!percent) return historicalMs;
+
+        const projectedMs = elapsedMs > 0 ? (elapsedMs / Math.max(percent, 0.02)) : 0;
+        const estimatedTotalMs = blendEstimateMs(historicalMs, projectedMs, percent);
+        return Math.max(elapsedMs, estimatedTotalMs);
+      }
+
+      function getCurrentJobRemainingMs(status) {
+        if (!isProductionStatusActive(status)) return 0;
+
+        const nextJob = status && status.jobs && status.jobs[status.nextJobIndex] ? status.jobs[status.nextJobIndex] : null;
+        if (!nextJob) return 0;
+
+        const currentElapsedMs = getCurrentJobElapsedMs(status);
+        const currentEstimatedTotalMs = getCurrentJobEstimatedTotalMs(status);
+        if (!currentEstimatedTotalMs) return 0;
+        return Math.max(0, Math.round(currentEstimatedTotalMs - currentElapsedMs));
+      }
+
+      function getEstimatedRemainingMs(status) {
+        if (!isProductionStatusActive(status)) return 0;
+
+        const totalJobs = Number(status && status.totalJobs) || 0;
+        const nextJob = status && status.jobs && status.jobs[status.nextJobIndex] ? status.jobs[status.nextJobIndex] : null;
+        if (!totalJobs || !nextJob) return 0;
+
+        let remainingMs = getCurrentJobRemainingMs(status);
+
+        const queuedJobs = (status.jobs || []).slice((Number(status.nextJobIndex) || 0) + 1);
+        queuedJobs.forEach(job => {
+          remainingMs += getHistoricalJobDurationMs(job, status);
+        });
+
+        return Math.max(0, Math.round(remainingMs));
+      }
+
+      function getEtaLabel(status) {
+        const remainingMs = getEstimatedRemainingMs(status);
+        if (!remainingMs) return '';
+        return 'ETA ' + formatDurationShort(remainingMs);
+      }
+
+      function getCurrentJobEtaLabel(status) {
+        const remainingMs = getCurrentJobRemainingMs(status);
+        if (!remainingMs) return '';
+        return 'ETA ' + formatDurationShort(remainingMs);
+      }
+
+      function applyProgressCreep(basePercent, elapsedMs, estimatedMs, hardCap, freshnessMs) {
+        const safeBase = Number(basePercent) || 0;
+        const safeEstimate = Math.max(1000, Number(estimatedMs) || 1000);
+        const safeCap = Math.max(safeBase, Number(hardCap) || safeBase);
+        const progressFraction = elapsedMs / safeEstimate;
+
+        if (progressFraction <= 0.96) return Math.min(safeCap, safeBase);
+
+        const overrunMs = Math.max(0, elapsedMs - (safeEstimate * 0.96));
+        const freshnessPenalty = Math.min(0.75, Math.max(0, freshnessMs - 2500) / 30000);
+        const creepWindow = Math.max(0.35, 1 - freshnessPenalty);
+        const creepHeadroom = Math.max(0, safeCap - safeBase);
+        const creepFraction = Math.min(1, overrunMs / Math.max(6000, safeEstimate * 1.4));
+        return Math.min(safeCap, safeBase + creepHeadroom * creepWindow * creepFraction);
+      }
+
+      function isProductionStatusActive(status) {
+        if (!status) return false;
+        if (typeof status.active === 'boolean') return status.active;
+        const totalJobs = Number(status && status.totalJobs) || 0;
+        const completed = Number(status && status.completed) || 0;
+        return !!(status && totalJobs && completed < totalJobs && status.jobs && status.jobs[status.nextJobIndex]);
+      }
+
+      function getLiveJobPercent(job, status) {
+        if (!job) return 0;
+
+        const elapsedMs = getCurrentJobProgressElapsedMs(job, status);
+        const freshnessMs = getStatusFreshnessMs(status);
+        const historicalJobMs = getHistoricalJobDurationMs(job, status);
+        if (!elapsedMs) return getJobPercent(job);
+
+        if (job.type === 'catalog_pdf') {
+          const totalPages = Number(job.totalPages) || 0;
+          const nextPageIndex = Number(job.progressPageIndex !== undefined ? job.progressPageIndex : job.nextPageIndex) || 0;
+          const stage = String(job.stage || 'init');
+
+          if (stage === 'init') return Math.min(14, 5 + (elapsedMs / 900));
+
+          if (stage === 'append_pages' && totalPages) {
+            const chunkPages = Math.max(1, Math.min(8, totalPages - nextPageIndex));
+            const base = 5 + (nextPageIndex / totalPages) * 85;
+            const chunkWeight = (chunkPages / totalPages) * 85;
+            const perPageHistoricalMs = historicalJobMs ? ((historicalJobMs * 0.84) / Math.max(1, totalPages)) : 0;
+            const estimatedMs = Math.max(10000, perPageHistoricalMs ? perPageHistoricalMs * chunkPages : chunkPages * 5200);
+            const fraction = Math.min(0.96, elapsedMs / estimatedMs);
+            const stageBase = base + chunkWeight * fraction;
+            return applyProgressCreep(stageBase, elapsedMs, estimatedMs, Math.min(94.5, base + chunkWeight * 0.995), freshnessMs);
+          }
+
+          if (stage === 'append_terms') {
+            const estimatedMs = historicalJobMs ? Math.max(2500, historicalJobMs * 0.04) : 5000;
+            const base = Math.min(96.5, 93 + (elapsedMs / estimatedMs) * 3);
+            return applyProgressCreep(base, elapsedMs, estimatedMs, 97.8, freshnessMs);
+          }
+
+          if (stage === 'export_pdf') {
+            const estimatedMs = historicalJobMs ? Math.max(4000, historicalJobMs * 0.08) : 8000;
+            const base = Math.min(99, 97 + (elapsedMs / estimatedMs) * 2);
+            return applyProgressCreep(base, elapsedMs, estimatedMs, 99.4, freshnessMs);
+          }
+        }
+
+        if (job.type === 'pricing_calc') {
+          const totalRows = Number(job.totalRows) || 0;
+          const processedRows = Number(job.processedRows) || 0;
+          if (!totalRows) return Math.min(18, 5 + (elapsedMs / 900));
+          const chunkRows = Math.max(1, Math.min(500, totalRows - processedRows));
+          const base = (processedRows / totalRows) * 100;
+          const chunkWeight = (chunkRows / totalRows) * 100;
+          const perRowHistoricalMs = historicalJobMs ? (historicalJobMs / Math.max(1, totalRows)) : 0;
+          const estimatedMs = Math.max(5000, perRowHistoricalMs ? perRowHistoricalMs * chunkRows : chunkRows * 18);
+          const stageBase = base + chunkWeight * Math.min(0.96, elapsedMs / estimatedMs);
+          return applyProgressCreep(stageBase, elapsedMs, estimatedMs, Math.min(99.2, base + chunkWeight * 0.995), freshnessMs);
+        }
+
+        if (job.type === 'repair_cartons') {
+          const totalGroups = Number(job.totalGroups) || 0;
+          const nextGroupIndex = Number(job.nextGroupIndex) || 0;
+          if (!totalGroups) return Math.min(18, 5 + (elapsedMs / 900));
+          const chunkGroups = Math.max(1, Math.min(300, totalGroups - nextGroupIndex));
+          const base = (nextGroupIndex / totalGroups) * 100;
+          const chunkWeight = (chunkGroups / totalGroups) * 100;
+          const perGroupHistoricalMs = historicalJobMs ? (historicalJobMs / Math.max(1, totalGroups)) : 0;
+          const estimatedMs = Math.max(5000, perGroupHistoricalMs ? perGroupHistoricalMs * chunkGroups : chunkGroups * 20);
+          const stageBase = base + chunkWeight * Math.min(0.96, elapsedMs / estimatedMs);
+          return applyProgressCreep(stageBase, elapsedMs, estimatedMs, Math.min(99.2, base + chunkWeight * 0.995), freshnessMs);
+        }
+
+        return getJobPercent(job);
+      }
+
+      function getRunPercent(status) {
+        const totalJobs = Number(status && status.totalJobs) || 0;
+        const completed = Number(status && status.completed) || 0;
+        const nextJob = status && status.jobs && status.jobs[status.nextJobIndex] ? status.jobs[status.nextJobIndex] : null;
+        if (!totalJobs) return 0;
+        if (!nextJob || !isProductionStatusActive(status)) {
+          return totalJobs ? (completed / totalJobs) * 100 : 100;
+        }
+        return Math.min(99, ((completed + (getLiveJobPercent(nextJob, status) / 100)) / totalJobs) * 100);
+      }
+
+      function buildOperationProgressModel(status) {
+        const totalJobs = Number(status && status.totalJobs) || 0;
+        const completed = Number(status && status.completed) || 0;
+        const nextJob = status && status.jobs && status.jobs[status.nextJobIndex] ? status.jobs[status.nextJobIndex] : null;
+        const isActive = !!(status && totalJobs && completed < totalJobs && nextJob);
+
+        if (!status) {
+          return { percent: 0, text: 'Current Operation: Idle', detail: '0%' };
+        }
+
+        if (isActive) {
+          const operationPercent = getLiveJobPercent(nextJob, status);
+          const detail = getJobDetail(nextJob);
+          const elapsedMs = getCurrentJobElapsedMs(status);
+          const remainingMs = getCurrentJobRemainingMs(status);
+          return {
+            percent: operationPercent,
+            text: 'Current Operation: ' + getJobLabel(nextJob),
+            detail: (detail ? detail : (Math.round(operationPercent) + '%')) +
+              (elapsedMs ? ' | Elapsed ' + formatDurationShort(elapsedMs) : '') +
+              (remainingMs ? ' | ETA ' + formatDurationShort(remainingMs) : '')
+          };
+        }
+
+        return { percent: 100, text: 'Current Operation: Complete', detail: '100%' };
+      }
+
+      function buildRunProgressModel(status) {
+        const totalJobs = Number(status && status.totalJobs) || 0;
+        const completed = Number(status && status.completed) || 0;
+        const nextJob = status && status.jobs && status.jobs[status.nextJobIndex] ? status.jobs[status.nextJobIndex] : null;
+        const isActive = !!(status && totalJobs && completed < totalJobs && nextJob);
+
+        if (!status) {
+          return { percent: 0, text: 'Production Run: Idle', detail: '0%' };
+        }
+
+        if (isActive) {
+          const overallPercent = totalJobs ? getRunPercent(status) : getLiveJobPercent(nextJob, status);
+          const eta = getEtaLabel(status);
+          const elapsedMs = getRunElapsedMs(status);
+          return {
+            percent: overallPercent,
+            text: 'Production Run: ' + completed + ' of ' + totalJobs + ' jobs complete',
+            detail: (completed + ' of ' + totalJobs + ' jobs complete') +
+              (elapsedMs ? ' | Elapsed ' + formatDurationShort(elapsedMs) : '') +
+              (eta ? ' | ' + eta : '')
+          };
+        }
+
+        return {
+          percent: 100,
+          text: 'Production Run: Complete',
+          detail: totalJobs ? (completed + ' of ' + totalJobs + ' complete') : '100%'
+        };
+      }
+
+      function refreshProgressFromStatus(status) {
+        latestProductionStatus = status || null;
+        const operationModel = buildOperationProgressModel(latestProductionStatus);
+        const runModel = buildRunProgressModel(latestProductionStatus);
+        const force = !latestProductionStatus || runModel.percent === 100;
+        setProgressTarget('operation', operationModel.percent, operationModel.text, operationModel.detail, force);
+        setProgressTarget('run', runModel.percent, runModel.text, runModel.detail, force);
+      }
+
+      function refreshLiveProductionDisplays(status) {
+        const statusText = status ? formatProductionStatus(status) : 'No active production run.';
+        setStatus(statusText, status ? (isProductionStatusActive(status) ? 'busy' : 'success') : '');
+
+        if (workflowData) {
+          workflowData.productionStatus = status || null;
+        }
+
+        if (document.getElementById('lastRunSummary')) {
+          renderLastRunSummary();
+        }
+        if (document.getElementById('workflowSteps')) {
+          renderWorkflowSteps();
+        }
+        if (document.getElementById('productionSafetyBanner')) {
+          renderProductionSafetyBanner();
+        }
+      }
+
+      function startProgressAnimation() {
+        stopProgressAnimation();
+        lastProgressAnimationAt = Date.now();
+        progressAnimationTimer = setInterval(() => {
+          const operationModel = buildOperationProgressModel(latestProductionStatus);
+          const runModel = buildRunProgressModel(latestProductionStatus);
+          setProgressTarget('operation', operationModel.percent, operationModel.text, operationModel.detail, false);
+          setProgressTarget('run', runModel.percent, runModel.text, runModel.detail, false);
+          const now = Date.now();
+          const deltaMs = Math.max(16, now - lastProgressAnimationAt);
+          lastProgressAnimationAt = now;
+          const active = isProductionStatusActive(latestProductionStatus);
+
+          ['operation', 'run'].forEach(key => {
+            const state = progressState[key];
+            if (state.displayedPercent > state.targetPercent) {
+              state.displayedPercent = state.targetPercent;
+            } else if (state.displayedPercent < state.targetPercent) {
+              const distance = state.targetPercent - state.displayedPercent;
+              const step = active
+                ? Math.max(0.08, distance * 0.12, deltaMs / 180)
+                : Math.max(0.05, distance * 0.08, deltaMs / 320);
+              state.displayedPercent = Math.min(state.targetPercent, state.displayedPercent + step);
+            }
+
+            renderProgressBar(key, state.displayedPercent, state.targetText, state.targetDetail);
+          });
+
+          if (active) {
+            setStatus(formatProductionStatus(latestProductionStatus), 'busy');
+          }
+        }, 100);
+      }
+
+      function stopProgressAnimation() {
+        if (!progressAnimationTimer) return;
+        clearInterval(progressAnimationTimer);
+        progressAnimationTimer = null;
+      }
+
+      function startStatusPolling() {
+        stopStatusPolling();
+        const poll = () => {
+          google.script.run
+            .withSuccessHandler(status => {
+              workflowData.productionStatus = status;
+              refreshProgressFromStatus(status);
+              refreshLiveProductionDisplays(status);
+
+              if (!isProductionStatusActive(status)) {
+                stopStatusPolling();
+                refreshData();
+                return;
+              }
+
+              statusPollTimer = setTimeout(poll, 3000);
+            })
+            .withFailureHandler(() => {
+              statusPollTimer = setTimeout(poll, 5000);
+            })
+            .getCatalogProductionRunStatusForSidebar();
+        };
+        poll();
+      }
+
+      function stopStatusPolling() {
+        if (!statusPollTimer) return;
+        clearTimeout(statusPollTimer);
+        statusPollTimer = null;
+      }
+
+      function refreshData() {
+        google.script.run
+          .withSuccessHandler(data => {
+            workflowData = data;
+            switchTab(activeTab);
+            renderGroups();
+            refreshProgressFromStatus(workflowData.productionStatus);
+            const statusText = workflowData.productionStatus
+              ? formatProductionStatus(workflowData.productionStatus)
+              : 'Ready.';
+            setStatus(statusText, workflowData.productionStatus ? 'success' : '');
+
+            const status = workflowData.productionStatus;
+            const totalJobs = Number(status && status.totalJobs) || 0;
+            const completed = Number(status && status.completed) || 0;
+            const isActive = !!(status && totalJobs && completed < totalJobs && status.jobs && status.jobs[status.nextJobIndex]);
+            if (isActive) startStatusPolling();
+          })
+          .withFailureHandler(error => {
+            setStatus(error && error.message ? error.message : String(error), 'error');
+          })
+          .getMsiAutomationSidebarData();
+      }
+
+      document.addEventListener('click', event => {
+        const tabButton = event.target.closest('.tab');
+        if (tabButton) {
+          switchTab(tabButton.dataset.tab);
+          return;
+        }
+
+        const editRuleButton = event.target.closest('[data-rule-edit]');
+        if (editRuleButton && !busy) {
+          beginRuleEdit(editRuleButton.dataset.ruleEdit);
+          return;
+        }
+
+        const toggleRuleButton = event.target.closest('[data-rule-toggle]');
+        if (toggleRuleButton && !busy) {
+          toggleRuleActive(toggleRuleButton.dataset.ruleToggle, toggleRuleButton.dataset.ruleNextActive === 'true');
+          return;
+        }
+
+        const removeRuleButton = event.target.closest('[data-rule-remove]');
+        if (removeRuleButton && !busy) {
+          removeRule(removeRuleButton.dataset.ruleRemove);
+          return;
+        }
+
+        const catalogSelect = event.target.closest('[data-catalog-select]');
+        if (catalogSelect && !busy) {
+          selectedCatalogGroups[catalogSelect.dataset.catalogSelect] = !!catalogSelect.checked;
+          renderCatalogSelectionSummary();
+          return;
+        }
+
+        const priceListSelect = event.target.closest('[data-price-list-select]');
+        if (priceListSelect && !busy) {
+          selectedPriceListGroups[priceListSelect.dataset.priceListSelect] = !!priceListSelect.checked;
+          renderPriceListSelectionSummary();
+          return;
+        }
+
+        const actionButton = event.target.closest('[data-action]');
+        if (actionButton && !busy) {
+          handleAction(actionButton.dataset.action, actionButton.dataset.group || '');
+          return;
+        }
+
+        if (event.target.id === 'saveRuleButton' && !busy) {
+          saveRule(false);
+          return;
+        }
+
+        if (event.target.id === 'saveRuleAndRecalcButton' && !busy) {
+          saveRule(true);
+          return;
+        }
+
+        if (event.target.id === 'cancelRuleEditButton' && !busy) {
+          resetRuleEditor();
+          return;
+        }
+
+        if (event.target.id === 'bulkEnableRulesButton' && !busy) {
+          bulkSetFilteredRulesActive(true);
+          return;
+        }
+
+        if (event.target.id === 'bulkDisableRulesButton' && !busy) {
+          bulkSetFilteredRulesActive(false);
+          return;
+        }
+
+        if (event.target.id === 'generateSelectedCatalogsButton' && !busy) {
+          generateSelectedCatalogs();
+          return;
+        }
+
+        if (event.target.id === 'clearSelectedCatalogsButton' && !busy) {
+          clearSelectedCatalogs();
+          return;
+        }
+
+        if (event.target.id === 'generateSelectedPriceListsButton' && !busy) {
+          generateSelectedPriceLists();
+          return;
+        }
+
+        if (event.target.id === 'clearSelectedPriceListsButton' && !busy) {
+          clearSelectedPriceLists();
+        }
+      });
+
+      document.addEventListener('input', event => {
+        if (event.target.id === 'catalogSearch' || event.target.id === 'priceListSearch') {
+          renderGroups();
+          return;
+        }
+
+        if (event.target.id === 'ruleScope') {
+          renderRuleInputOptions();
+          syncRuleScopeFields();
+          return;
+        }
+
+        if (
+          event.target.id === 'ruleProductGroup' ||
+          event.target.id === 'rulePlc' ||
+          event.target.id === 'ruleFittingType' ||
+          event.target.id === 'ruleItemNumber' ||
+          event.target.matches('[data-choice-group]')
+        ) {
+          renderRuleInputOptions();
+          return;
+        }
+
+        if (event.target.id === 'ruleDisplayGroup' || event.target.id === 'ruleSearch' || event.target.id === 'ruleStatusFilter') {
+          renderPriceRules();
+        }
+      });
+
+      window.addEventListener('load', () => {
+        switchTab(activeTab);
+        updateRuleEditorState();
+        startProgressAnimation();
+        refreshData();
+      });
+    </script>
+  </body>
+</html>
