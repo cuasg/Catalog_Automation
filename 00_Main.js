@@ -4446,7 +4446,10 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
   const left = titleElement.getLeft();
   const width = titleElement.getWidth();
   const titleHeight = estimateCatalogTitleTextHeight_(titleText, width);
-  const titleSafetyPadding = titleText.length >= 42 ? 4.2 : titleText.length >= 30 ? 3.1 : 2.1;
+  let titleSafetyPadding = titleText.length >= 42 ? 4.2 : titleText.length >= 30 ? 3.1 : 2.1;
+  if (needsExtraValveSpecTitleClearance_(titleText)) {
+    titleSafetyPadding += 1.6;
+  }
   const renderedTitleBottom = titleTop + titleHeight + titleSafetyPadding;
   const top = renderedTitleBottom + 4.2;
   const lineCount = estimateCatalogSpecInfoLineCount_(specInfo, width);
@@ -4484,6 +4487,19 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
     height,
     bottom: top + height
   };
+}
+
+function needsExtraValveSpecTitleClearance_(titleText) {
+  const normalizedTitle = normalizeMatchValue_(titleText);
+  if (!normalizedTitle) return false;
+
+  return [
+    'dielectric unions',
+    'y-strainer - bronze - threaded',
+    'swing check valves - stainless - threaded',
+    'hose stop - stainless - fpt',
+    'hose stop - stainless - mpt'
+  ].some(pattern => normalizedTitle.indexOf(normalizeMatchValue_(pattern)) !== -1);
 }
 
 function estimateCatalogTitleTextHeight_(text, width) {
