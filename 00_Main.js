@@ -20,6 +20,29 @@ const MSI_WORKFLOW_GROUPS_ = [
 ];
 
 const MSI_TIME_ZONE_ = 'America/Chicago';
+const MSI_PRODUCTION_MODE_PROPERTY_ = 'MSI_PRODUCTION_MODE';
+const MSI_PRODUCTION_MODE_CHANGED_AT_PROPERTY_ = 'MSI_PRODUCTION_MODE_CHANGED_AT';
+const MSI_PRICE_HISTORY_HEADERS_ = [
+  'Timestamp',
+  'Run_ID',
+  'Event_Type',
+  'Product_Group',
+  'PLC_Scope',
+  'Catalog_File_Name',
+  'Price_File_Name',
+  'Version_Code',
+  'Rule_Summary',
+  'Rules_Applied_Count',
+  'SKUs_Changed_Count',
+  'Prior_Total_Value',
+  'Published_Total_Value',
+  'Net_Change_Value',
+  'Avg_Change_Pct',
+  'Changed_By',
+  'Notes',
+  'PDF_File_ID',
+  'XLS_File_ID'
+];
 
 function getCatalogTimeZone_() {
   return MSI_TIME_ZONE_;
@@ -27,6 +50,29 @@ function getCatalogTimeZone_() {
 
 function getCatalogTimestamp_(date) {
   return Utilities.formatDate(date || new Date(), getCatalogTimeZone_(), "yyyy-MM-dd'T'HH:mm:ssZ");
+}
+
+function isProductionModeEnabled_() {
+  return isTruthy_(PropertiesService.getScriptProperties().getProperty(MSI_PRODUCTION_MODE_PROPERTY_) || '');
+}
+
+function getProductionModeState_() {
+  const properties = PropertiesService.getScriptProperties();
+  return {
+    enabled: isProductionModeEnabled_(),
+    changedAt: properties.getProperty(MSI_PRODUCTION_MODE_CHANGED_AT_PROPERTY_) || ''
+  };
+}
+
+function setProductionModeEnabled_(enabled) {
+  const properties = PropertiesService.getScriptProperties();
+  if (enabled) {
+    properties.setProperty(MSI_PRODUCTION_MODE_PROPERTY_, 'TRUE');
+  } else {
+    properties.deleteProperty(MSI_PRODUCTION_MODE_PROPERTY_);
+  }
+  properties.setProperty(MSI_PRODUCTION_MODE_CHANGED_AT_PROPERTY_, getCatalogTimestamp_());
+  return getProductionModeState_();
 }
 
 function onOpen() {
@@ -802,6 +848,7 @@ function setupCatalogTemplateWorkbook() {
     'Applied_Increase_Pct',
     'Calculated_List_Price',
     'Prior_Published_Price',
+    'Prior_Published_Price_Change_Timestamp',
     'Needs_Update',
     'Sort_Order',
     'product_image_filename',
@@ -820,6 +867,8 @@ function setupCatalogTemplateWorkbook() {
     'Increase_Pct',
     'Notes'
   ]);
+
+  ensurePriceHistorySheetStructure_(ss);
 }
 
 function ensureSheetColumns_(ss, sheetName, requiredHeaders) {
@@ -853,6 +902,40 @@ function ensureSheetColumns_(ss, sheetName, requiredHeaders) {
     .setWrap(true);
 
   sheet.autoResizeColumns(startColumn, missingHeaders.length);
+}
+
+function ensurePriceHistorySheetStructure_(ss) {
+  const workbook = ss || getCatalogWorkbook_();
+  let sheet = workbook.getSheetByName('Price_History');
+  if (!sheet) {
+    sheet = workbook.insertSheet('Price_History');
+  }
+
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  const hasNonblankDataRows = lastRow > 1 && sheet.getRange(2, 1, lastRow - 1, Math.max(1, lastColumn)).getDisplayValues()
+    .some(row => row.some(value => String(value || '').trim()));
+
+  if (!lastColumn || !hasNonblankDataRows) {
+    if (lastColumn < MSI_PRICE_HISTORY_HEADERS_.length) {
+      if (lastColumn === 0) {
+        sheet.insertColumns(1, MSI_PRICE_HISTORY_HEADERS_.length);
+      } else {
+        sheet.insertColumnsAfter(lastColumn, MSI_PRICE_HISTORY_HEADERS_.length - lastColumn);
+      }
+    }
+    sheet.getRange(1, 1, 1, MSI_PRICE_HISTORY_HEADERS_.length)
+      .setValues([MSI_PRICE_HISTORY_HEADERS_])
+      .setFontWeight('bold')
+      .setBackground('#D9EAF7')
+      .setWrap(true);
+    sheet.setFrozenRows(1);
+    sheet.autoResizeColumns(1, MSI_PRICE_HISTORY_HEADERS_.length);
+    return sheet;
+  }
+
+  ensureSheetColumns_(workbook, 'Price_History', MSI_PRICE_HISTORY_HEADERS_);
+  return sheet;
 }
 
 function isTruthy_(value) {
@@ -1012,13 +1095,24 @@ function getMsiAutomationSidebarData() {
     priceRules: getPriceRulesForSidebar_(ss),
     priceRuleOptions: getPriceRuleOptionsForSidebar_(ss),
     ruleHistory: getRecentPriceRuleHistoryForSidebar_(ss),
+    productionMode: getProductionModeState_(),
     productionStatus: getCatalogProductionRunState_() || null
+  };
+}
+
+function setProductionModeFromSidebar(enabled) {
+  const state = setProductionModeEnabled_(!!enabled);
+  const modeLabel = state.enabled ? 'enabled' : 'disabled';
+  return {
+    ok: true,
+    message: `Production mode ${modeLabel}. Price history and published-price baseline updates will ${state.enabled ? '' : 'not '}run during output generation.`,
+    productionMode: state
   };
 }
 
 function getMsiAutomationPreflightData_(ss) {
   const workbook = ss || getCatalogWorkbook_();
-  const requiredSheets = ['Catalog_Groups', 'Catalog_SKUs', 'Price_Rules', 'Sheet_Definitions', 'Generation_Log'];
+  const requiredSheets = ['Catalog_Groups', 'Catalog_SKUs', 'Price_Rules', 'Price_History', 'Sheet_Definitions', 'Generation_Log'];
   const issues = [];
   const seenIssueKeys = {};
 
@@ -1342,7 +1436,8 @@ function getMsiAutomationOverviewData_(ss, groups) {
       activeProductGroups: (groups || []).filter(group => group.isActive).length,
       activePlcCount: Object.keys(plcLookup).length,
       latestPricingRun,
-      latestCartonRepair
+      latestCartonRepair,
+      productionMode: getProductionModeState_()
     },
     groups: orderedRows.map(entry => ({
       productGroup: entry.productGroup,
@@ -1363,6 +1458,230 @@ function getLatestSidebarLogTimestamp_(logValues, predicate) {
     return formatSidebarLogTimestamp_(logValues[i][0]);
   }
   return '';
+}
+
+function getActorEmailForHistory_() {
+  try {
+    const activeEmail = Session.getActiveUser().getEmail();
+    if (activeEmail) return activeEmail;
+  } catch (err) {
+    // Ignore and fall back.
+  }
+
+  try {
+    const effectiveEmail = Session.getEffectiveUser().getEmail();
+    if (effectiveEmail) return effectiveEmail;
+  } catch (err) {
+    // Ignore and fall back.
+  }
+
+  return '';
+}
+
+function getPublishedPriceValue_(row, col) {
+  const calculated = normalizeCatalogPriceValue_(row[col.Calculated_List_Price]);
+  if (calculated !== '' && calculated !== null) return calculated;
+  const listPrice = normalizeCatalogPriceValue_(row[col.List_Price]);
+  return listPrice === null ? '' : listPrice;
+}
+
+function formatPriceHistoryScopeLabel_(groupPlc) {
+  const value = String(groupPlc || '').trim();
+  return value || 'All';
+}
+
+function buildPriceHistoryRuleSummary_(ss, productGroup, groupPlc) {
+  const workbook = ss || getCatalogWorkbook_();
+  const sheet = workbook.getSheetByName('Price_Rules');
+  if (!sheet || sheet.getLastRow() < 2) {
+    return {
+      ruleCount: 0,
+      summary: 'No active price rules found.'
+    };
+  }
+
+  const values = sheet.getDataRange().getValues();
+  const col = headerMap_(values[0]);
+  const groupPlcValues = String(groupPlc || '').split(',')
+    .map(value => normalizeMatchValue_(value))
+    .filter(Boolean);
+
+  const rules = values.slice(1)
+    .filter(row => isTruthy_(row[col.Active]))
+    .filter(row => String(row[col.Product_Group] || '').trim() === String(productGroup || '').trim())
+    .filter(row => {
+      const rulePlc = normalizeMatchValue_(row[col.PLC]);
+      if (!rulePlc) return true;
+      if (!groupPlcValues.length) return true;
+      return groupPlcValues.indexOf(rulePlc) !== -1;
+    })
+    .map(row => buildPriceRuleTargetFromSheetRow_(row, col));
+
+  if (!rules.length) {
+    return {
+      ruleCount: 0,
+      summary: 'No active group price rules matched this publish.'
+    };
+  }
+
+  const examples = rules.slice(0, 3).map(target => describePriceRuleTarget_(target));
+  return {
+    ruleCount: rules.length,
+    summary: examples.join(' || ') + (rules.length > examples.length ? ` || +${rules.length - examples.length} more` : '')
+  };
+}
+
+function summarizePublishedPriceChanges_(rows, col) {
+  const changedRows = [];
+  let priorTotalValue = 0;
+  let publishedTotalValue = 0;
+  let numericChangeCount = 0;
+  let cumulativeChangePct = 0;
+
+  (rows || []).forEach(row => {
+    const priorValue = normalizeCatalogPriceValue_(row[col.Prior_Published_Price]);
+    const publishedValue = getPublishedPriceValue_(row, col);
+    const changed = !catalogPriceValuesEqual_(priorValue, publishedValue);
+    if (!changed) return;
+
+    changedRows.push(row);
+
+    if (typeof priorValue === 'number') priorTotalValue += priorValue;
+    if (typeof publishedValue === 'number') publishedTotalValue += publishedValue;
+    if (typeof priorValue === 'number' && typeof publishedValue === 'number' && priorValue !== 0) {
+      cumulativeChangePct += ((publishedValue - priorValue) / priorValue);
+      numericChangeCount++;
+    }
+  });
+
+  return {
+    changedRows,
+    changedCount: changedRows.length,
+    priorTotalValue,
+    publishedTotalValue,
+    netChangeValue: publishedTotalValue - priorTotalValue,
+    avgChangePct: numericChangeCount ? (cumulativeChangePct / numericChangeCount) : ''
+  };
+}
+
+function updatePublishedPriceBaselineForScope_(ss, groupRow, groupCol, skuValues, skuCol, rows, changeSummary) {
+  const workbook = ss || getCatalogWorkbook_();
+  const skuSheet = workbook.getSheetByName('Catalog_SKUs');
+  if (!skuSheet || !skuValues.length) return;
+
+  const groupPlc = getOptionalCellValue_(groupRow, groupCol, 'PLC');
+  const changedTimestamp = getCatalogTimestamp_();
+  const priceHistory = changeSummary || summarizePublishedPriceChanges_(rows, skuCol);
+  if (!priceHistory.changedCount) return;
+
+  const targetRows = {};
+  (rows || []).forEach(row => {
+    const itemNumber = String(row[skuCol.Item_Number] || '').trim();
+    const plc = normalizeMatchValue_(row[skuCol.PLC]);
+    const fittingType = String(row[skuCol.Fitting_Type] || '').trim();
+    const variant = normalizeVariantKey_(row[skuCol.Variant]);
+    const variant2 = normalizeVariant2Key_(getOptionalCellValue_(row, skuCol, 'Variant_2'));
+    const sizesKey = [row[skuCol.Size_1], row[skuCol.Size_2], row[skuCol.Size_3]].map(value => String(value || '').trim()).join('|');
+    const key = [itemNumber, plc, fittingType, variant, variant2, sizesKey].join('|');
+    targetRows[key] = row;
+  });
+
+  const priorPublishedValues = [];
+  const priorPublishedTimestampValues = [];
+  const needsUpdateValues = [];
+
+  for (let i = 1; i < skuValues.length; i++) {
+    const sourceRow = skuValues[i];
+    const itemNumber = String(sourceRow[skuCol.Item_Number] || '').trim();
+    const plc = normalizeMatchValue_(sourceRow[skuCol.PLC]);
+    const fittingType = String(sourceRow[skuCol.Fitting_Type] || '').trim();
+    const variant = normalizeVariantKey_(sourceRow[skuCol.Variant]);
+    const variant2 = normalizeVariant2Key_(getOptionalCellValue_(sourceRow, skuCol, 'Variant_2'));
+    const sizesKey = [sourceRow[skuCol.Size_1], sourceRow[skuCol.Size_2], sourceRow[skuCol.Size_3]].map(value => String(value || '').trim()).join('|');
+    const key = [itemNumber, plc, fittingType, variant, variant2, sizesKey].join('|');
+    const matchedRow = targetRows[key];
+
+    let nextPrior = sourceRow[skuCol.Prior_Published_Price];
+    let nextTimestamp = getOptionalCellValue_(sourceRow, skuCol, 'Prior_Published_Price_Change_Timestamp');
+    let nextNeedsUpdate = sourceRow[skuCol.Needs_Update];
+
+    if (matchedRow &&
+        isTruthy_(sourceRow[skuCol.Active]) &&
+        String(sourceRow[skuCol.Product_Group] || '').trim() === String(groupRow[groupCol.Product_Group] || '').trim() &&
+        matchesOptionalGroupPlc_(sourceRow, skuCol, groupPlc)) {
+      const publishedValue = getPublishedPriceValue_(matchedRow, skuCol);
+      nextPrior = publishedValue;
+      nextTimestamp = changedTimestamp;
+      nextNeedsUpdate = false;
+    }
+
+    priorPublishedValues.push([nextPrior]);
+    priorPublishedTimestampValues.push([nextTimestamp]);
+    needsUpdateValues.push([nextNeedsUpdate]);
+  }
+
+  const totalRows = skuValues.length - 1;
+  if (totalRows <= 0) return;
+  const startRow = 2;
+  skuSheet.getRange(startRow, skuCol.Prior_Published_Price + 1, totalRows, 1).setValues(priorPublishedValues);
+  if (skuCol.Prior_Published_Price_Change_Timestamp !== undefined) {
+    skuSheet.getRange(startRow, skuCol.Prior_Published_Price_Change_Timestamp + 1, totalRows, 1).setValues(priorPublishedTimestampValues);
+  }
+  skuSheet.getRange(startRow, skuCol.Needs_Update + 1, totalRows, 1).setValues(needsUpdateValues);
+}
+
+function appendPriceHistorySummaryForPublish_(ss, options, changeSummary) {
+  const workbook = ss || getCatalogWorkbook_();
+  const historySheet = ensurePriceHistorySheetStructure_(workbook);
+  const rows = options.rows || [];
+  const skuCol = options.skuCol || {};
+  const groupRow = options.groupRow || [];
+  const groupCol = options.groupCol || {};
+  const publishSummary = changeSummary || summarizePublishedPriceChanges_(rows, skuCol);
+  if (!publishSummary.changedCount) return;
+  const ruleSummary = buildPriceHistoryRuleSummary_(workbook, options.productGroup, options.groupPlc);
+
+  const row = [
+    getCatalogTimestamp_(),
+    options.runId || '',
+    options.eventType || '',
+    options.productGroup || '',
+    formatPriceHistoryScopeLabel_(options.groupPlc),
+    options.catalogFileName || '',
+    options.priceFileName || '',
+    options.versionCode || '',
+    ruleSummary.summary,
+    ruleSummary.ruleCount,
+    publishSummary.changedCount,
+    publishSummary.priorTotalValue,
+    publishSummary.publishedTotalValue,
+    publishSummary.netChangeValue,
+    publishSummary.avgChangePct,
+    getActorEmailForHistory_(),
+    String(getOptionalCellValue_(groupRow, groupCol, 'Notes') || '').trim(),
+    options.pdfFileId || '',
+    options.xlsFileId || ''
+  ];
+
+  historySheet.appendRow(row);
+  const appendedRow = historySheet.getLastRow();
+  historySheet.getRange(appendedRow, 11, 1, 1).setNumberFormat('0');
+  historySheet.getRange(appendedRow, 12, 1, 3).setNumberFormat('$#,##0.00');
+  historySheet.getRange(appendedRow, 15, 1, 1).setNumberFormat('0.00%');
+}
+
+function maybeRecordProductionPricePublish_(options) {
+  if (!isProductionModeEnabled_()) return;
+  const workbook = options.ss || getCatalogWorkbook_();
+  const skuValues = options.skuValues || [];
+  const rows = options.rows || [];
+  if (!skuValues.length || !rows.length) return;
+
+  const changeSummary = summarizePublishedPriceChanges_(rows, options.skuCol || {});
+  if (!changeSummary.changedCount) return;
+
+  updatePublishedPriceBaselineForScope_(workbook, options.groupRow, options.groupCol, skuValues, options.skuCol, rows, changeSummary);
+  appendPriceHistorySummaryForPublish_(workbook, options, changeSummary);
 }
 
 function formatSidebarLogTimestamp_(value) {
@@ -2221,6 +2540,9 @@ function runMsiAutomationAction(action, productGroup) {
         preflight: getMsiAutomationPreflightData_(getCatalogWorkbook_())
       };
 
+    case 'setProductionMode':
+      return setProductionModeFromSidebar(String(productGroup || '').trim().toUpperCase() === 'TRUE');
+
     case 'productionStatus':
       return {
         ok: true,
@@ -2377,6 +2699,24 @@ function generateCatalogPriceFiles(onlyProductGroup, onlyPriceFileName, options)
         outputFolder.addFile(file);
         DriveApp.getRootFolder().removeFile(file);
       }
+
+      maybeRecordProductionPricePublish_({
+        ss,
+        runId: '',
+        eventType: 'price_file_publish',
+        productGroup,
+        groupRow: group,
+        groupCol,
+        groupPlc,
+        skuValues,
+        skuCol,
+        rows,
+        catalogFileName: String(group[groupCol.Catalog_File_Name] || '').trim(),
+        priceFileName,
+        versionCode,
+        pdfFileId: '',
+        xlsFileId: outputSs.getId()
+      });
 
       appendCatalogLog_(
         logSheet,
@@ -2900,6 +3240,24 @@ function runCatalogSlidesProductionStep_(job, progressCallback) {
     archiveExistingDriveFiles_(context.outputFolder, context.archiveFolder, [context.catalogFileName]);
     const pdfFile = context.outputFolder ? context.outputFolder.createFile(pdfBlob) : DriveApp.createFile(pdfBlob);
 
+    maybeRecordProductionPricePublish_({
+      ss: context.ss,
+      runId: nextJob.runId || '',
+      eventType: 'catalog_pdf_publish',
+      productGroup: context.productGroup,
+      groupRow: context.group,
+      groupCol: context.groupCol,
+      groupPlc: context.groupPlc,
+      skuValues: context.skuValues,
+      skuCol: context.skuCol,
+      rows: context.rows,
+      catalogFileName: context.catalogFileName,
+      priceFileName: String(getOptionalCellValue_(context.group, context.groupCol, 'Price_File_Name') || '').trim(),
+      versionCode: String(context.meta.versionCode || '').trim(),
+      pdfFileId: pdfFile.getId(),
+      xlsFileId: ''
+    });
+
     appendCatalogLog_(
       context.logSheet,
       context.productGroup,
@@ -2980,6 +3338,10 @@ function getCatalogSlidesProductionContext_(job) {
   return {
     ss,
     logSheet,
+    skuValues,
+    skuCol,
+    groupCol,
+    groupPlc,
     sheetDefinitions,
     productGroup,
     catalogFileName,
@@ -3953,7 +4315,7 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
   const width = titleElement.getWidth();
   const titleHeight = estimateCatalogTitleTextHeight_(titleText, width);
   const renderedTitleBottom = titleTop + Math.min(titleElement.getHeight(), titleHeight);
-  const top = renderedTitleBottom + 1.8;
+  const top = renderedTitleBottom + 3.1;
   const lineCount = estimateCatalogSpecInfoLineCount_(specInfo, width);
   const height = Math.max(5.6, (lineCount * 5.35));
 
@@ -3993,10 +4355,10 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
 
 function estimateCatalogTitleTextHeight_(text, width) {
   const normalizedText = String(text || '').trim();
-  if (!normalizedText) return 11.5;
+  if (!normalizedText) return 12.4;
 
   const lineCount = estimateCatalogWrappedLineCount_(normalizedText, width, 6.35, 1);
-  return Math.max(11.5, lineCount * 9.25);
+  return Math.max(12.4, lineCount * 9.8);
 }
 
 function estimateCatalogSpecInfoLineCount_(text, width) {

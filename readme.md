@@ -34,7 +34,7 @@ Important local state:
 - Butt-weld catalog tables now use the shape-table path for better width control. The butt-weld fitting order has been tightened so elbows lead before tees/caps/reducing families, and weight-based headers have extra width to reduce 3-line wrapping.
 - The `Price_Rules` workflow now supports optional `Variant` and `Variant_2` drill-down filters so rules can be narrowed by finish, grade, schedule, class, or connection family when that product group needs it.
 - The sidebar now includes a separate `Maintenance` tab for queue/admin actions.
-- The `Overview` tab is now read-only operational context: workbook metrics, group-level SKU/PLC/rule coverage, last successful price-file timestamps, and last successful catalog timestamps.
+- The `Overview` tab now includes a `Production Mode` toggle in addition to the operational snapshot. When enabled, successful published output runs write a summary row to `Price_History` and update the published-price baseline fields on `Catalog_SKUs`.
 - The actionable queue controls for `Refresh Production Status` and `Cancel Active Production Run` now live on `Maintenance`, and the maintenance tab has been moved to the far right of the tab strip.
 - The workflow does not auto-open on workbook open. The stable production pattern is: build the `MSI Automation` menu on open, show a short ready-toast, and let the operator launch the workflow manually from `MSI Automation > Open Workflow`.
 - The workflow now includes a `Preflight` tab that audits workbook readiness before production and a `Last Production Run` summary section on `Overview`.
@@ -55,6 +55,11 @@ Important local state:
 - Full production runs still respect `Catalog_Groups.Active` plus `Generate_PDF` / `Generate_XLS`.
 - Legacy `generateCatalogPDFs()` now throws a deprecation error so the old sheet-based catalog path is not used by mistake.
 - Generation timestamps written by the automation now use explicit Central time via `America/Chicago` instead of relying on the script timezone.
+- `Catalog_SKUs` now carries `Prior_Published_Price_Change_Timestamp` alongside `Prior_Published_Price`.
+- `Price_History` is now intended to be a publish-event summary log, not a row-per-SKU audit dump.
+- Production-mode behavior:
+  - when `Production Mode` is off, generation does not update `Price_History`, `Prior_Published_Price`, or `Prior_Published_Price_Change_Timestamp`
+  - when `Production Mode` is on, successful catalog/price-file publishes update the published-price baseline on matching `Catalog_SKUs` rows and append one summary row to `Price_History`
 - The production progress model was tightened again on 2026-07-14:
   - current-operation elapsed time now stays anchored to the true job start across trigger slices
   - operation ETA and full-run ETA are now derived separately
@@ -203,6 +208,7 @@ Expected columns:
 - `Applied_Increase_Pct`
 - `Calculated_List_Price`
 - `Prior_Published_Price`
+- `Prior_Published_Price_Change_Timestamp`
 - `Needs_Update`
 - `Sort_Order`
 - `product_image_filename`
@@ -221,7 +227,36 @@ Column behavior:
 - If all sections on a product page share one nonblank `Variant_2`, the product page subtitle is derived from that value.
 - For malleable iron, this allows `150lb Threaded Fittings` and `300lb Threaded Fittings` page subtitles.
 - `Pair_Key_Auto`, `Applied_Increase_Pct`, `Calculated_List_Price`, and `Needs_Update` are script-generated.
+- `Prior_Published_Price` and `Prior_Published_Price_Change_Timestamp` are only updated during successful publish runs while `Production Mode` is enabled.
 - `Image_File_ID` is used for section product images. Missing images should not stop generation.
+
+### Price_History
+
+Expected summary headers:
+- `Timestamp`
+- `Run_ID`
+- `Event_Type`
+- `Product_Group`
+- `PLC_Scope`
+- `Catalog_File_Name`
+- `Price_File_Name`
+- `Version_Code`
+- `Rule_Summary`
+- `Rules_Applied_Count`
+- `SKUs_Changed_Count`
+- `Prior_Total_Value`
+- `Published_Total_Value`
+- `Net_Change_Value`
+- `Avg_Change_Pct`
+- `Changed_By`
+- `Notes`
+- `PDF_File_ID`
+- `XLS_File_ID`
+
+Behavior:
+- `Price_History` is written only when `Production Mode` is enabled.
+- The sheet records one summary row per successful published output file, not one row per SKU.
+- No history row is written when a publish run produces no actual price delta against the current `Prior_Published_Price` baseline.
 
 ### Catalog_Groups
 

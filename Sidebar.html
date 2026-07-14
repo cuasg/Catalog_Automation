@@ -693,6 +693,16 @@
 
       <div id="overview" class="panel active">
         <div class="section">
+          <h2>Production Mode</h2>
+          <p>Enable this only when you want published output runs to update `Price_History` and store the latest published price baseline on `Catalog_SKUs`.</p>
+          <label class="group-select" style="margin-bottom:8px;">
+            <input type="checkbox" id="productionModeToggle">
+            <div class="group-name">Production tracking enabled</div>
+          </label>
+          <div id="productionModeHint" class="hint"></div>
+        </div>
+
+        <div class="section">
           <h2>Recommended Workflow</h2>
           <p>Run the production steps in this order so the workbook is validated before output generation starts.</p>
           <div id="workflowSteps" class="workflow-steps"></div>
@@ -1110,12 +1120,25 @@
         const overview = workflowData.overview || {};
         const summary = overview.summary || {};
         const groups = overview.groups || [];
+        const productionMode = workflowData.productionMode || summary.productionMode || { enabled: false, changedAt: '' };
 
         document.getElementById('overviewMetrics').innerHTML = [
           buildMetricCard('Active SKUs', formatNumber(summary.activeSkuCount), 'of ' + formatNumber(summary.totalSkuCount) + ' total'),
           buildMetricCard('Active Product Groups', formatNumber(summary.activeProductGroups), 'of ' + formatNumber(summary.totalProductGroups) + ' configured'),
           buildMetricCard('Active PLCs', formatNumber(summary.activePlcCount), summary.latestPricingRun ? ('Last repricing: ' + summary.latestPricingRun) : 'No repricing log yet')
         ].join('');
+
+        const productionModeToggle = document.getElementById('productionModeToggle');
+        const productionModeHint = document.getElementById('productionModeHint');
+        if (productionModeToggle) {
+          productionModeToggle.checked = !!productionMode.enabled;
+          productionModeToggle.disabled = !!busy;
+        }
+        if (productionModeHint) {
+          productionModeHint.textContent = productionMode.enabled
+            ? ('Enabled' + (productionMode.changedAt ? ' · changed ' + productionMode.changedAt : '') + '. Successful published output runs will update Price_History and the published-price baseline.')
+            : ('Disabled' + (productionMode.changedAt ? ' · changed ' + productionMode.changedAt : '') + '. Output generation will not write Price_History or update Prior_Published_Price fields.');
+        }
 
         renderWorkflowSteps();
         renderLastRunSummary();
@@ -1873,6 +1896,34 @@
           .runMsiAutomationAction(action, productGroup || '');
       }
 
+      function setProductionMode(enabled) {
+        setBusy(true);
+        setStatus('Updating production mode...', 'busy');
+
+        google.script.run
+          .withSuccessHandler(result => {
+            setBusy(false);
+            if (!workflowData) workflowData = {};
+            workflowData.productionMode = result && result.productionMode ? result.productionMode : workflowData.productionMode;
+            if (workflowData.overview && workflowData.overview.summary) {
+              workflowData.overview.summary.productionMode = workflowData.productionMode;
+            }
+            renderOverview();
+            renderWorkflowSteps();
+            setStatus((result && result.message) || 'Production mode updated.', 'success');
+            refreshData();
+          })
+          .withFailureHandler(error => {
+            setBusy(false);
+            const toggle = document.getElementById('productionModeToggle');
+            if (toggle && workflowData && workflowData.productionMode) {
+              toggle.checked = !!workflowData.productionMode.enabled;
+            }
+            setStatus(error && error.message ? error.message : String(error), 'error');
+          })
+          .setProductionModeFromSidebar(!!enabled);
+      }
+
       function generateSelectedCatalogs() {
         const selectedGroups = getSelectedCatalogGroupNames();
         if (!selectedGroups.length) {
@@ -2602,6 +2653,12 @@
 
         if (event.target.id === 'ruleDisplayGroup' || event.target.id === 'ruleSearch' || event.target.id === 'ruleStatusFilter') {
           renderPriceRules();
+        }
+      });
+
+      document.addEventListener('change', event => {
+        if (event.target.id === 'productionModeToggle' && !busy) {
+          setProductionMode(!!event.target.checked);
         }
       });
 
