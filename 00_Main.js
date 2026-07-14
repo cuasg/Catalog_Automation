@@ -3953,7 +3953,7 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
   const width = titleElement.getWidth();
   const titleHeight = estimateCatalogTitleTextHeight_(titleText, width);
   const renderedTitleBottom = titleTop + Math.min(titleElement.getHeight(), titleHeight);
-  const top = renderedTitleBottom + 0.6;
+  const top = renderedTitleBottom + 1.8;
   const lineCount = estimateCatalogSpecInfoLineCount_(specInfo, width);
   const height = Math.max(5.6, (lineCount * 5.35));
 
@@ -3993,10 +3993,10 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
 
 function estimateCatalogTitleTextHeight_(text, width) {
   const normalizedText = String(text || '').trim();
-  if (!normalizedText) return 10.0;
+  if (!normalizedText) return 11.5;
 
-  const lineCount = estimateCatalogWrappedLineCount_(normalizedText, width, 5.7, 1);
-  return Math.max(10.0, lineCount * 8.6);
+  const lineCount = estimateCatalogWrappedLineCount_(normalizedText, width, 6.35, 1);
+  return Math.max(11.5, lineCount * 9.25);
 }
 
 function estimateCatalogSpecInfoLineCount_(text, width) {
