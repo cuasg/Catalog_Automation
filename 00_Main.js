@@ -2229,7 +2229,11 @@ function runMsiAutomationAction(action, productGroup) {
 
     case 'cancelProduction':
       cancelCatalogProductionRun();
-      return { ok: true, message: 'Active production queue cancelled.' };
+      return {
+        ok: true,
+        message: 'Active production queue cancelled.',
+        status: getCatalogProductionRunState_() || null
+      };
 
     default:
       throw new Error(`Unsupported workflow action: ${normalizedAction}`);
@@ -2845,6 +2849,7 @@ function runCatalogSlidesProductionStep_(job, progressCallback) {
       startIndex,
       endIndex,
       function(partialNextPageIndex) {
+        nextJob.nextPageIndex = partialNextPageIndex;
         nextJob.progressPageIndex = partialNextPageIndex;
         nextJob.progressAnchorAt = getCatalogTimestamp_();
         if (typeof progressCallback === 'function') {
@@ -3080,12 +3085,17 @@ function appendCatalogSlidesPagesChunk_(deckFileId, meta, pages, sheetDefinition
 
     const slide = presentation.appendSlide(templateSlides[templateId]);
     fillCatalogProductSlide_(slide, meta, page, index + 2);
+    runSlidesOperationWithRetry_(`Save ${meta.deckName} page ${index + 1}`, () => presentation.saveAndClose());
     if (typeof progressCallback === 'function') {
       progressCallback(index + 1);
     }
+    if (index + 1 < endIndex) {
+      presentation = runSlidesOperationWithRetry_(
+        `Reopen ${meta.deckName}`,
+        () => SlidesApp.openById(deckFileId)
+      );
+    }
   }
-
-  runSlidesOperationWithRetry_(`Save ${meta.deckName}`, () => presentation.saveAndClose());
 }
 
 function appendCatalogSlidesTermsPage_(deckFileId, meta, pageNumber) {
@@ -3490,6 +3500,10 @@ function runNextCatalogProductionBatch_() {
   }
 
   const state = JSON.parse(serializedState);
+  if (isCatalogProductionRunCancelled_(state.runId)) {
+    finalizeCanceledProductionState_(state);
+    return;
+  }
   if (state.nextJobIndex >= state.jobs.length) {
     return completeCatalogProductionRun_(state);
   }
@@ -3537,7 +3551,9 @@ function runNextCatalogProductionBatch_() {
       const catalogStep = runCatalogSlidesProductionJobUntilPause_(job, batchDeadlineMs, function(partialJob) {
         state.jobs[state.nextJobIndex] = partialJob;
         state.updatedAt = getCatalogTimestamp_();
-        saveCatalogProductionState_(state);
+        if (!saveCatalogProductionState_(state)) {
+          throw new Error('__CATALOG_PRODUCTION_CANCELLED__');
+        }
       });
       state.jobs[state.nextJobIndex] = catalogStep.job;
 
@@ -3545,7 +3561,10 @@ function runNextCatalogProductionBatch_() {
         deleteCatalogProductionTriggers_();
         state.currentAttempt = 0;
         state.updatedAt = getCatalogTimestamp_();
-        saveCatalogProductionState_(state);
+        if (!saveCatalogProductionState_(state)) {
+          finalizeCanceledProductionState_(state);
+          return;
+        }
         scheduleCatalogProductionTrigger_(5000);
         return;
       }
@@ -3559,7 +3578,10 @@ function runNextCatalogProductionBatch_() {
         deleteCatalogProductionTriggers_();
         state.currentAttempt = 0;
         state.updatedAt = getCatalogTimestamp_();
-        saveCatalogProductionState_(state);
+        if (!saveCatalogProductionState_(state)) {
+          finalizeCanceledProductionState_(state);
+          return;
+        }
         scheduleCatalogProductionTrigger_(5000);
         return;
       }
@@ -3571,7 +3593,10 @@ function runNextCatalogProductionBatch_() {
         deleteCatalogProductionTriggers_();
         state.currentAttempt = 0;
         state.updatedAt = getCatalogTimestamp_();
-        saveCatalogProductionState_(state);
+        if (!saveCatalogProductionState_(state)) {
+          finalizeCanceledProductionState_(state);
+          return;
+        }
         scheduleCatalogProductionTrigger_(5000);
         return;
       }
@@ -3590,17 +3615,27 @@ function runNextCatalogProductionBatch_() {
     state.currentAttempt = 0;
     state.currentJobStartedAt = '';
     state.updatedAt = getCatalogTimestamp_();
-    saveCatalogProductionState_(state);
+    if (!saveCatalogProductionState_(state)) {
+      finalizeCanceledProductionState_(state);
+      return;
+    }
     return scheduleOrCompleteCatalogProduction_(state);
 
   } catch (err) {
     deleteCatalogProductionTriggers_();
+    if (String(err && err.message ? err.message : err || '') === '__CATALOG_PRODUCTION_CANCELLED__') {
+      finalizeCanceledProductionState_(state);
+      return;
+    }
     const isTransient = isTransientProductionError_(err);
 
     if (isTransient && state.currentAttempt < 3) {
       state.updatedAt = getCatalogTimestamp_();
       state.lastError = String(err.message || err).slice(0, 500);
-      saveCatalogProductionState_(state);
+      if (!saveCatalogProductionState_(state)) {
+        finalizeCanceledProductionState_(state);
+        return;
+      }
       scheduleCatalogProductionTrigger_(state.currentAttempt * 60000);
       Logger.log(`${job.fileName}: transient production error; attempt ${state.currentAttempt + 1} scheduled.`);
       return;
@@ -3622,7 +3657,10 @@ function runNextCatalogProductionBatch_() {
     state.currentJobStartedAt = '';
     state.lastError = '';
     state.updatedAt = getCatalogTimestamp_();
-    saveCatalogProductionState_(state);
+    if (!saveCatalogProductionState_(state)) {
+      finalizeCanceledProductionState_(state);
+      return;
+    }
     return scheduleOrCompleteCatalogProduction_(state);
   }
   } finally {
@@ -3679,7 +3717,13 @@ function runChunkedProductionJobUntilPause_(job, deadlineMs, stepRunner) {
 function saveCatalogProductionState_(state) {
   state.active = true;
   state.updatedAt = getCatalogTimestamp_();
+  if (isCatalogProductionRunCancelled_(state.runId)) {
+    const properties = PropertiesService.getScriptProperties();
+    properties.deleteProperty('CATALOG_PRODUCTION_QUEUE');
+    return false;
+  }
   PropertiesService.getScriptProperties().setProperty('CATALOG_PRODUCTION_QUEUE', JSON.stringify(state));
+  return true;
 }
 
 function completeCatalogProductionRun_(state) {
@@ -3787,26 +3831,45 @@ function cancelCatalogProductionRun() {
   const canceledAt = getCatalogTimestamp_();
 
   deleteCatalogProductionTriggers_();
-  properties.deleteProperty('CATALOG_PRODUCTION_QUEUE');
   if (active) {
     const state = JSON.parse(active);
-    const summary = {
-      active: false,
-      status: 'cancelled',
-      runId: state.runId,
-      mode: state.mode,
-      startedAt: state.startedAt,
-      canceledAt,
-      totalJobs: state.totalJobs,
-      completed: state.completed || 0,
-      succeeded: state.completed || 0,
-      failedCount: (state.failed || []).length,
-      remaining: Math.max(0, (state.totalJobs || 0) - (state.completed || 0) - ((state.failed || []).length)),
-      failed: state.failed || []
-    };
-    properties.setProperty('CATALOG_PRODUCTION_LAST_RUN', JSON.stringify(summary));
+    properties.setProperty('CATALOG_PRODUCTION_CANCELLED_RUN_ID', state.runId);
+    properties.deleteProperty('CATALOG_PRODUCTION_QUEUE');
+    finalizeCanceledProductionState_(state, canceledAt);
   }
   Logger.log(active ? 'Catalog production run cancelled.' : 'No active catalog production run found.');
+}
+
+function isCatalogProductionRunCancelled_(runId) {
+  if (!runId) return false;
+  const canceledRunId = PropertiesService.getScriptProperties().getProperty('CATALOG_PRODUCTION_CANCELLED_RUN_ID');
+  return canceledRunId === runId;
+}
+
+function finalizeCanceledProductionState_(state, canceledAtOverride) {
+  if (!state) return;
+  const properties = PropertiesService.getScriptProperties();
+  const canceledAt = canceledAtOverride || getCatalogTimestamp_();
+  const summary = {
+    active: false,
+    status: 'cancelled',
+    runId: state.runId,
+    mode: state.mode,
+    startedAt: state.startedAt,
+    canceledAt,
+    totalJobs: state.totalJobs,
+    completed: state.completed || 0,
+    succeeded: state.completed || 0,
+    failedCount: (state.failed || []).length,
+    remaining: Math.max(0, (state.totalJobs || 0) - (state.completed || 0) - ((state.failed || []).length)),
+    failed: state.failed || []
+  };
+  deleteCatalogProductionTriggers_();
+  properties.deleteProperty('CATALOG_PRODUCTION_QUEUE');
+  properties.setProperty('CATALOG_PRODUCTION_LAST_RUN', JSON.stringify(summary));
+  if (isCatalogProductionRunCancelled_(state.runId)) {
+    properties.deleteProperty('CATALOG_PRODUCTION_CANCELLED_RUN_ID');
+  }
 }
 
 function deleteCatalogProductionTriggers_() {

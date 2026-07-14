@@ -1834,6 +1834,9 @@
       function handleAction(action, productGroup) {
         setBusy(true);
         setStatus(getBusyMessage(action, productGroup), 'busy');
+        if (action === 'cancelProduction') {
+          stopStatusPolling();
+        }
         progressState.operation.displayedPercent = 0;
         progressState.run.displayedPercent = 0;
         setProgressTarget('operation', 0, 'Current Operation: ' + getBusyMessage(action, productGroup), 'Starting', true);
@@ -1850,7 +1853,11 @@
             let message = (result && result.message) || 'Done.';
             if (result && result.status) {
               message += '\n\n' + formatProductionStatus(result.status);
-              startStatusPolling();
+              if (isProductionStatusActive(result.status)) {
+                startStatusPolling();
+              } else {
+                stopStatusPolling();
+              }
             }
             if (result && result.preview) {
               message += '\n\nPreview summary:\n' + JSON.stringify(result.preview, null, 2);
@@ -1971,7 +1978,7 @@
           const nextPageIndex = Number(job.progressPageIndex !== undefined ? job.progressPageIndex : job.nextPageIndex) || 0;
           const stage = String(job.stage || 'init');
           if (stage === 'append_pages' && totalPages) {
-            return 'Page ' + Math.min(totalPages, nextPageIndex + 1) + ' of ' + totalPages;
+            return Math.min(totalPages, nextPageIndex) + ' of ' + totalPages + ' pages saved';
           }
           if (stage === 'append_terms') return 'Adding terms page';
           if (stage === 'export_pdf') return 'Exporting PDF';
