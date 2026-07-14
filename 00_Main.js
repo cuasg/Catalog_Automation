@@ -3947,12 +3947,14 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
   const specInfo = String(section && section.specInfo || '').trim();
   if (!specInfo || !titleElement) return null;
 
-  const titleBottom = titleElement.getTop() + titleElement.getHeight();
+  const titleText = String((titleElement.getText && titleElement.getText().asString()) || '').trim();
+  const titleTop = titleElement.getTop();
   const left = titleElement.getLeft();
   const width = titleElement.getWidth();
-  const top = titleBottom - 2.0;
+  const titleHeight = estimateCatalogTitleTextHeight_(titleText, width);
+  const top = titleTop + titleHeight - 0.6;
   const lineCount = estimateCatalogSpecInfoLineCount_(specInfo, width);
-  const height = Math.max(6.0, (lineCount * 6.0));
+  const height = Math.max(5.6, (lineCount * 5.35));
 
   const shape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, left, top, width, height);
   shape.getFill().setTransparent();
@@ -3966,7 +3968,7 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
   shape.getText().getParagraphStyle()
     .setParagraphAlignment(SlidesApp.ParagraphAlignment.START);
 
-  const shiftDelta = Math.max(2.0, height - 1.8);
+  const shiftDelta = Math.max(1.0, height - 3.6);
   [
     `{{SECTION_${sectionNumber}_PICTURE}}`,
     `{{SECTION_${sectionNumber}_TABLE}}`
@@ -3985,15 +3987,30 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
   };
 }
 
+function estimateCatalogTitleTextHeight_(text, width) {
+  const normalizedText = String(text || '').trim();
+  if (!normalizedText) return 8.5;
+
+  const lineCount = estimateCatalogWrappedLineCount_(normalizedText, width, 5.7, 1);
+  return Math.max(8.5, lineCount * 8.1);
+}
+
 function estimateCatalogSpecInfoLineCount_(text, width) {
   const normalizedText = String(text || '').trim();
   if (!normalizedText) return 0;
 
-  const charsPerLine = Math.max(22, Math.floor((Number(width) || 180) / 4.15));
   return normalizedText
     .split(/\s*\/\s*/)
-    .map(part => Math.max(1, Math.ceil(String(part || '').trim().length / charsPerLine)))
+    .map(part => estimateCatalogWrappedLineCount_(String(part || '').trim(), width, 4.55, 1))
     .reduce((sum, count) => sum + count, 0);
+}
+
+function estimateCatalogWrappedLineCount_(text, width, avgCharWidth, minLines) {
+  const normalizedText = String(text || '').trim();
+  if (!normalizedText) return Math.max(0, Number(minLines) || 0);
+
+  const charsPerLine = Math.max(12, Math.floor((Number(width) || 180) / Math.max(1, Number(avgCharWidth) || 4.5)));
+  return Math.max(Math.max(1, Number(minLines) || 1), Math.ceil(normalizedText.length / charsPerLine));
 }
 
 function compactCatalogSectionLayout_(slide, sectionNumber, previousSectionBottom) {
