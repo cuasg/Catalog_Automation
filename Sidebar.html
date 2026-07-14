@@ -2033,7 +2033,7 @@
           const initTotalSteps = Math.max(0, Number(job.initTotalSteps) || 0);
           if (stage === 'init') {
             if (initStepLabel && initTotalSteps) {
-              return 'Preparing deck: ' + initStepLabel + ' (' + Math.min(initTotalSteps, initStepIndex + 1) + ' of ' + initTotalSteps + ')';
+              return 'Preparing deck: ' + initStepLabel + ' (' + Math.min(initTotalSteps, initStepIndex) + ' of ' + initTotalSteps + ')';
             }
             if (initStepLabel) return 'Preparing deck: ' + initStepLabel;
             return 'Preparing deck';
@@ -2269,9 +2269,16 @@
         if (stage === 'init') {
           const initStepIndex = Math.max(0, Number(job.initStepIndex) || 0);
           const initTotalSteps = Math.max(0, Number(job.initTotalSteps) || 0);
-          const initStepFraction = initTotalSteps ? Math.min(0.98, initStepIndex / initTotalSteps) : 0;
-          const initElapsedFraction = Math.min(0.98, Math.max(0, progressElapsedMs) / Math.max(1200, timing.initMs));
-          const initFraction = Math.max(initStepFraction, initElapsedFraction);
+          const completedStepFraction = initTotalSteps
+            ? Math.min(0.98, Math.max(0, initStepIndex - 1) / initTotalSteps)
+            : 0;
+          const currentStepFraction = initTotalSteps
+            ? Math.min(0.98 / Math.max(1, initTotalSteps), Math.max(0, progressElapsedMs) / Math.max(1200, timing.initMs * 0.45))
+            : Math.min(0.24, Math.max(0, progressElapsedMs) / Math.max(1200, timing.initMs));
+          const initFraction = Math.max(
+            completedStepFraction + currentStepFraction,
+            Math.min(0.98, Math.max(0, progressElapsedMs) / Math.max(1200, timing.initMs))
+          );
           return Math.min(timing.initMs * 0.995, Math.max(600, timing.initMs * initFraction));
         }
 

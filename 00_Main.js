@@ -3200,7 +3200,7 @@ function runCatalogSlidesProductionStep_(job, progressCallback) {
 
   if (stage === 'init') {
     nextJob.initTotalSteps = 4;
-    nextJob.initStepIndex = 0;
+    nextJob.initStepIndex = 1;
     nextJob.initStepLabel = 'Opening slides output folder';
     if (typeof progressCallback === 'function') {
       progressCallback(Object.assign({}, nextJob));
@@ -3208,7 +3208,7 @@ function runCatalogSlidesProductionStep_(job, progressCallback) {
 
     const slidesFolder = context.outputFolder ? getOrCreateDriveSubfolder_(context.outputFolder, 'Slides') : null;
 
-    nextJob.initStepIndex = 1;
+    nextJob.initStepIndex = 2;
     nextJob.initStepLabel = 'Cleaning prior slides deck';
     nextJob.progressAnchorAt = getCatalogTimestamp_();
     if (typeof progressCallback === 'function') {
@@ -3217,7 +3217,7 @@ function runCatalogSlidesProductionStep_(job, progressCallback) {
 
     trashExistingCatalogSlidesDecks_(context.outputFolder, slidesFolder, context.meta);
 
-    nextJob.initStepIndex = 2;
+    nextJob.initStepIndex = 3;
     nextJob.initStepLabel = 'Copying cover template';
     nextJob.progressAnchorAt = getCatalogTimestamp_();
     if (typeof progressCallback === 'function') {
@@ -3226,7 +3226,7 @@ function runCatalogSlidesProductionStep_(job, progressCallback) {
 
     const deckFile = createCatalogSlidesDeckFile_(context.meta, slidesFolder);
 
-    nextJob.initStepIndex = 3;
+    nextJob.initStepIndex = 4;
     nextJob.initStepLabel = 'Initializing cover slide';
     nextJob.progressAnchorAt = getCatalogTimestamp_();
     if (typeof progressCallback === 'function') {
@@ -4402,10 +4402,11 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
   const left = titleElement.getLeft();
   const width = titleElement.getWidth();
   const titleHeight = estimateCatalogTitleTextHeight_(titleText, width);
-  const renderedTitleBottom = titleTop + Math.min(titleElement.getHeight(), titleHeight + 2.4);
-  const top = renderedTitleBottom + 5.2;
+  const titleSafetyPadding = titleText.length >= 42 ? 4.2 : titleText.length >= 30 ? 3.1 : 2.1;
+  const renderedTitleBottom = titleTop + titleHeight + titleSafetyPadding;
+  const top = renderedTitleBottom + 4.2;
   const lineCount = estimateCatalogSpecInfoLineCount_(specInfo, width);
-  const height = Math.max(6.4, (lineCount * 5.85));
+  const height = Math.max(5.8, (lineCount * 5.4));
 
   const shape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, left, top, width, height);
   shape.getFill().setTransparent();
@@ -4419,7 +4420,7 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
   shape.getText().getParagraphStyle()
     .setParagraphAlignment(SlidesApp.ParagraphAlignment.START);
 
-  const desiredContentTop = top + height + 0.25;
+  const desiredContentTop = top + height + 0.05;
   [
     `{{SECTION_${sectionNumber}_PICTURE}}`,
     `{{SECTION_${sectionNumber}_TABLE}}`
@@ -4443,10 +4444,10 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
 
 function estimateCatalogTitleTextHeight_(text, width) {
   const normalizedText = String(text || '').trim();
-  if (!normalizedText) return 16.6;
+  if (!normalizedText) return 17.2;
 
   const lineCount = estimateCatalogWrappedLineCount_(normalizedText, width, 6.05, 1);
-  return Math.max(16.6, lineCount * 12.0);
+  return Math.max(17.2, lineCount * 12.2);
 }
 
 function estimateCatalogSpecInfoLineCount_(text, width) {
@@ -4471,7 +4472,7 @@ function compactCatalogSectionLayout_(slide, sectionNumber, previousSectionBotto
   const titleElement = findCatalogPlaceholderElement_(slide, `{{SECTION_${sectionNumber}_TITLE}}`);
   if (!titleElement) return;
 
-  const desiredTitleTop = previousSectionBottom + 11;
+  const desiredTitleTop = previousSectionBottom + 5.5;
   const currentTitleTop = titleElement.getTop();
   const delta = desiredTitleTop - currentTitleTop;
 
