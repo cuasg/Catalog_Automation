@@ -3952,7 +3952,8 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
   const left = titleElement.getLeft();
   const width = titleElement.getWidth();
   const titleHeight = estimateCatalogTitleTextHeight_(titleText, width);
-  const top = titleTop + titleHeight - 0.6;
+  const renderedTitleBottom = titleTop + Math.min(titleElement.getHeight(), titleHeight);
+  const top = renderedTitleBottom + 0.6;
   const lineCount = estimateCatalogSpecInfoLineCount_(specInfo, width);
   const height = Math.max(5.6, (lineCount * 5.35));
 
@@ -3968,14 +3969,17 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
   shape.getText().getParagraphStyle()
     .setParagraphAlignment(SlidesApp.ParagraphAlignment.START);
 
-  const shiftDelta = Math.max(1.0, height - 3.6);
+  const desiredContentTop = top + height + 0.8;
   [
     `{{SECTION_${sectionNumber}_PICTURE}}`,
     `{{SECTION_${sectionNumber}_TABLE}}`
   ].forEach(placeholder => {
     const element = findCatalogPlaceholderElement_(slide, placeholder);
     if (!element) return;
-    element.setTop(element.getTop() + shiftDelta);
+    const shiftDelta = Math.max(0, desiredContentTop - element.getTop());
+    if (shiftDelta > 0.1) {
+      element.setTop(element.getTop() + shiftDelta);
+    }
   });
 
   return {
@@ -3989,10 +3993,10 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
 
 function estimateCatalogTitleTextHeight_(text, width) {
   const normalizedText = String(text || '').trim();
-  if (!normalizedText) return 8.5;
+  if (!normalizedText) return 10.0;
 
   const lineCount = estimateCatalogWrappedLineCount_(normalizedText, width, 5.7, 1);
-  return Math.max(8.5, lineCount * 8.1);
+  return Math.max(10.0, lineCount * 8.6);
 }
 
 function estimateCatalogSpecInfoLineCount_(text, width) {
