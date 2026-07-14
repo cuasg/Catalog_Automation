@@ -3047,10 +3047,6 @@ function generateCatalogSlidesPDFs(onlyProductGroup, onlyCatalogFileName, retryA
     return startFullCatalogSlidesGeneration();
   }
 
-  if (!(options && options.skipCartonNormalization)) {
-    normalizeCatalogCartonsForGeneration_();
-  }
-
   const ss = getCatalogWorkbook_();
   const skuSheet = ss.getSheetByName('Catalog_SKUs');
   const groupSheet = ss.getSheetByName('Catalog_Groups');
@@ -3867,7 +3863,7 @@ function queueCatalogProductionJobs_(jobs, mode, counts) {
 
 function prependAutomaticCartonNormalizationJob_(jobs) {
   const queue = (jobs || []).slice();
-  const needsGenerationNormalization = queue.some(job => job.type === 'catalog_pdf' || job.type === 'price_file');
+  const needsGenerationNormalization = queue.some(job => job.type === 'price_file');
   const alreadyIncluded = queue.some(job => job.type === 'repair_cartons');
 
   if (needsGenerationNormalization && !alreadyIncluded) {
