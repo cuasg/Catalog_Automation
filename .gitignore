@@ -13,3 +13,6 @@ Thumbs.db
 *.log
 tmp/
 temp/
+
+# Local auth/secrets
+.github-token.local

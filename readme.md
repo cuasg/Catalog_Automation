@@ -4,7 +4,7 @@
 
 After meaningful code edits, test runs, layout decisions, or workflow changes, update this README before ending the session. The goal is that a new Codex session can continue without relying on chat history.
 
-## Current Status - 2026-07-10
+## Current Status - 2026-07-14
 
 This is a Google Apps Script / clasp project for generating MSI catalog price-list PDFs and customer net price files from the master workbook.
 
@@ -54,8 +54,18 @@ Important local state:
 - Targeted category runs from the sidebar intentionally do **not** depend on the `Catalog_Groups.Active` toggle.
 - Full production runs still respect `Catalog_Groups.Active` plus `Generate_PDF` / `Generate_XLS`.
 - Legacy `generateCatalogPDFs()` now throws a deprecation error so the old sheet-based catalog path is not used by mistake.
+- Generation timestamps written by the automation now use explicit Central time via `America/Chicago` instead of relying on the script timezone.
+- The production progress model was tightened again on 2026-07-14:
+  - current-operation elapsed time now stays anchored to the true job start across trigger slices
+  - operation ETA and full-run ETA are now derived separately
+  - sidebar ETA math now blends live completion ratio with historical durations from `Generation_Log`
+  - sidebar status now shows `Current Timing` and `Up Next` instead of echoing the current job as the next job
 - The generated table-to-next-section title gap is intended to be `11pt`.
 - Local `00_Main.js` has been synced to `11pt` so a future `clasp push` does not revert that manual tune.
+- Local Git is now initialized and connected to `https://github.com/cuasg/Catalog_Automation`.
+- Git tracking policy:
+  - commit Apps Script source, README, `.clasp.json`, and `.gitignore`
+  - do **not** commit generated PDFs, workbook snapshots, or local token files
 - Latest local workbook inventory:
   - `Catalog_SKUs`: 8,172 SKU rows.
   - `Catalog_Groups`: 23 group rows.
@@ -122,7 +132,7 @@ Remote execution note:
 ## Pending UI Follow-Up
 
 - Add an explicit queue confirmation message for full production runs that tells the operator the run has been handed off to Apps Script / Google infrastructure and is safe to leave running after closing the dialog, browser, or local machine.
-- Improve progress-bar fidelity further if needed. The current bar is smoother than before, and catalog runs now persist finer-grained page checkpoints, but it is still partly a client-side model rather than a literal server-side progress stream.
+- Improve progress-bar fidelity further if needed. It is materially better than the earlier version, but it is still partly a client-side model rather than a literal server-side progress stream.
 - If stronger push protection is needed later, the real next step is an external `safe-clasp-push` wrapper or another out-of-band status check. Apps Script UI warnings alone cannot technically block a local shell push.
 
 ## Drive Hierarchy
@@ -651,5 +661,6 @@ Production behavior:
 - Latest local workbook: `MSI_Catalog_Automation_Workbook.xlsx`.
 - Latest local PDF references include the current valves output plus the current steel butt-weld example used for review.
 - Latest `node --check 00_Main.js` status remains recorded as passing.
+- GitHub remote repo: `https://github.com/cuasg/Catalog_Automation`
 - Current local state assumption: confirm the workflow production status before any future push because queued Apps Script runs can continue after the UI closes.
 - Local `00_Main.js` is intended to be the current source of truth for workflow UI, queued production, automatic carton normalization, slide-deck replacement, current catalog layout rules, page-level progress checkpoints, forged stainless lane separation, and the production push-safety warnings.
