@@ -2028,6 +2028,16 @@
           const totalPages = Number(job.totalPages) || 0;
           const nextPageIndex = Number(job.progressPageIndex !== undefined ? job.progressPageIndex : job.nextPageIndex) || 0;
           const stage = String(job.stage || 'init');
+          const initStepLabel = String(job.initStepLabel || '').trim();
+          const initStepIndex = Math.max(0, Number(job.initStepIndex) || 0);
+          const initTotalSteps = Math.max(0, Number(job.initTotalSteps) || 0);
+          if (stage === 'init') {
+            if (initStepLabel && initTotalSteps) {
+              return 'Preparing deck: ' + initStepLabel + ' (' + Math.min(initTotalSteps, initStepIndex + 1) + ' of ' + initTotalSteps + ')';
+            }
+            if (initStepLabel) return 'Preparing deck: ' + initStepLabel;
+            return 'Preparing deck';
+          }
           if (stage === 'append_pages' && totalPages) {
             return Math.min(totalPages, nextPageIndex) + ' of ' + totalPages + ' pages saved';
           }
@@ -2240,7 +2250,12 @@
         const progressElapsedMs = getCurrentJobProgressElapsedMs(job, status);
 
         if (stage === 'init') {
-          return Math.min(timing.totalMs * 0.16, Math.max(600, progressElapsedMs));
+          const initStepIndex = Math.max(0, Number(job.initStepIndex) || 0);
+          const initTotalSteps = Math.max(0, Number(job.initTotalSteps) || 0);
+          const initStepFraction = initTotalSteps ? Math.min(0.98, initStepIndex / initTotalSteps) : 0;
+          const initElapsedFraction = Math.min(0.98, Math.max(0, progressElapsedMs) / Math.max(1200, timing.initMs));
+          const initFraction = Math.max(initStepFraction, initElapsedFraction);
+          return Math.min(timing.initMs * 0.995, Math.max(600, timing.initMs * initFraction));
         }
 
         if (stage === 'append_pages' && timing.totalPages) {
@@ -2271,6 +2286,51 @@
 
         if (stage === 'complete') return timing.totalMs;
         return Math.min(timing.totalMs * 0.12, Math.max(500, progressElapsedMs));
+      }
+
+      function getCatalogStagePercent(job, status) {
+        if (!job) return 0;
+
+        const timing = getCatalogTimingModel(job, status);
+        const totalPages = Math.max(0, Number(job.totalPages) || 0);
+        const savedPages = Math.max(0, Number(
+          job.progressPageIndex !== undefined ? job.progressPageIndex : job.nextPageIndex
+        ) || 0);
+        const progressElapsedMs = getCurrentJobProgressElapsedMs(job, status);
+        const stage = String(job.stage || 'init');
+        const initWeight = 8;
+        const pagesWeight = 84;
+        const termsWeight = 4;
+        const exportWeight = 3.2;
+
+        if (stage === 'init') {
+          const initStepIndex = Math.max(0, Number(job.initStepIndex) || 0);
+          const initTotalSteps = Math.max(0, Number(job.initTotalSteps) || 0);
+          const initStepFraction = initTotalSteps ? Math.min(0.98, initStepIndex / initTotalSteps) : 0;
+          const initElapsedFraction = Math.min(0.98, Math.max(0, progressElapsedMs) / Math.max(1200, timing.initMs));
+          const initFraction = Math.max(initStepFraction, initElapsedFraction);
+          return Math.min(initWeight * 0.995, initWeight * initFraction);
+        }
+
+        if (stage === 'append_pages' && totalPages) {
+          const pageSlice = pagesWeight / totalPages;
+          const savedFloor = initWeight + Math.min(pagesWeight, savedPages * pageSlice);
+          const inFlightFraction = Math.min(0.98, Math.max(0, progressElapsedMs) / Math.max(1800, timing.perPageMs));
+          return Math.min(initWeight + pagesWeight - 0.15, savedFloor + (pageSlice * inFlightFraction));
+        }
+
+        if (stage === 'append_terms') {
+          const termsFraction = Math.min(0.98, Math.max(0, progressElapsedMs) / Math.max(1200, timing.termsMs || 2000));
+          return Math.min(initWeight + pagesWeight + termsWeight - 0.08, initWeight + pagesWeight + (termsWeight * termsFraction));
+        }
+
+        if (stage === 'export_pdf') {
+          const exportFraction = Math.min(0.98, Math.max(0, progressElapsedMs) / Math.max(1800, timing.exportMs || 4000));
+          return Math.min(99.2, initWeight + pagesWeight + termsWeight + (exportWeight * exportFraction));
+        }
+
+        if (stage === 'complete') return 100;
+        return Math.min(initWeight * 0.8, 2 + Math.max(0, progressElapsedMs) / 900);
       }
 
       function blendEstimateMs(historicalMs, projectedMs, completionRatio) {
@@ -2368,10 +2428,7 @@
         if (!elapsedMs) return getJobPercent(job);
 
         if (job.type === 'catalog_pdf') {
-          const timing = getCatalogTimingModel(job, status);
-          const consumedMs = getCatalogConsumedMs(job, status);
-          if (!timing.totalMs) return 0;
-          return Math.min(99.2, (consumedMs / timing.totalMs) * 100);
+          return getCatalogStagePercent(job, status);
         }
 
         if (job.type === 'pricing_calc') {

@@ -3166,15 +3166,48 @@ function runCatalogSlidesProductionStep_(job, progressCallback) {
   if (!nextJob.progressAnchorAt) nextJob.progressAnchorAt = nextJob.stageStartedAt;
 
   if (stage === 'init') {
+    nextJob.initTotalSteps = 4;
+    nextJob.initStepIndex = 0;
+    nextJob.initStepLabel = 'Opening slides output folder';
+    if (typeof progressCallback === 'function') {
+      progressCallback(Object.assign({}, nextJob));
+    }
+
     const slidesFolder = context.outputFolder ? getOrCreateDriveSubfolder_(context.outputFolder, 'Slides') : null;
+
+    nextJob.initStepIndex = 1;
+    nextJob.initStepLabel = 'Cleaning prior slides deck';
+    nextJob.progressAnchorAt = getCatalogTimestamp_();
+    if (typeof progressCallback === 'function') {
+      progressCallback(Object.assign({}, nextJob));
+    }
+
     trashExistingCatalogSlidesDecks_(context.outputFolder, slidesFolder, context.meta);
+
+    nextJob.initStepIndex = 2;
+    nextJob.initStepLabel = 'Copying cover template';
+    nextJob.progressAnchorAt = getCatalogTimestamp_();
+    if (typeof progressCallback === 'function') {
+      progressCallback(Object.assign({}, nextJob));
+    }
+
     const deckFile = createCatalogSlidesDeckFile_(context.meta, slidesFolder);
+
+    nextJob.initStepIndex = 3;
+    nextJob.initStepLabel = 'Initializing cover slide';
+    nextJob.progressAnchorAt = getCatalogTimestamp_();
+    if (typeof progressCallback === 'function') {
+      progressCallback(Object.assign({}, nextJob));
+    }
+
     initializeCatalogSlidesDeck_(deckFile.getId(), context.meta);
 
     nextJob.deckFileId = deckFile.getId();
     nextJob.deckName = context.meta.deckName;
     nextJob.nextPageIndex = 0;
     nextJob.progressPageIndex = 0;
+    nextJob.initStepIndex = nextJob.initTotalSteps;
+    nextJob.initStepLabel = 'Deck ready';
     nextJob.stage = context.pages.length ? 'append_pages' : 'append_terms';
     nextJob.stageStartedAt = getCatalogTimestamp_();
     nextJob.progressAnchorAt = nextJob.stageStartedAt;
@@ -4315,9 +4348,9 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
   const width = titleElement.getWidth();
   const titleHeight = estimateCatalogTitleTextHeight_(titleText, width);
   const renderedTitleBottom = titleTop + Math.min(titleElement.getHeight(), titleHeight);
-  const top = renderedTitleBottom + 5.4;
+  const top = renderedTitleBottom + 6.8;
   const lineCount = estimateCatalogSpecInfoLineCount_(specInfo, width);
-  const height = Math.max(5.6, (lineCount * 5.35));
+  const height = Math.max(7.2, (lineCount * 6.65));
 
   const shape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, left, top, width, height);
   shape.getFill().setTransparent();
@@ -4327,7 +4360,7 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
     .setForegroundColor('#000000')
     .setBold(false)
     .setFontFamily('Montserrat')
-    .setFontSize(6.8);
+    .setFontSize(8.8);
   shape.getText().getParagraphStyle()
     .setParagraphAlignment(SlidesApp.ParagraphAlignment.START);
 
@@ -4355,10 +4388,10 @@ function insertCatalogSectionSpecInfo_(slide, sectionNumber, titleElement, secti
 
 function estimateCatalogTitleTextHeight_(text, width) {
   const normalizedText = String(text || '').trim();
-  if (!normalizedText) return 15.2;
+  if (!normalizedText) return 16.6;
 
-  const lineCount = estimateCatalogWrappedLineCount_(normalizedText, width, 5.95, 1);
-  return Math.max(15.2, lineCount * 11.8);
+  const lineCount = estimateCatalogWrappedLineCount_(normalizedText, width, 6.2, 1);
+  return Math.max(16.6, lineCount * 12.4);
 }
 
 function estimateCatalogSpecInfoLineCount_(text, width) {
