@@ -631,15 +631,16 @@ function runCatalogCartonRepairStep_(job, progressCallback) {
 
       if (touched) {
         updates.push({ rowIndex: entry.rowIndex, innerCarton: nextInner, masterCase: nextMaster });
+        values[entry.rowIndex - 1][col.Inner_Carton] = nextInner;
+        values[entry.rowIndex - 1][col.Master_Case] = nextMaster;
         rowsUpdated++;
       }
     });
   }
 
-  updates.forEach(update => {
-    skuSheet.getRange(update.rowIndex, col.Inner_Carton + 1).setValue(update.innerCarton);
-    skuSheet.getRange(update.rowIndex, col.Master_Case + 1).setValue(update.masterCase);
-  });
+  if (updates.length) {
+    writeCatalogCartonChunkUpdates_(skuSheet, values, col, updates);
+  }
 
   const nextGroupIndex = endGroupIndex;
   const completed = nextGroupIndex >= totalGroups;
@@ -678,6 +679,49 @@ function runCatalogCartonRepairStep_(job, progressCallback) {
     completed,
     job: updatedJob
   };
+}
+
+function writeCatalogCartonChunkUpdates_(sheet, values, col, updates) {
+  if (!sheet || !values || !values.length || !updates || !updates.length) return;
+
+  const sortedRowIndexes = updates
+    .map(update => Number(update.rowIndex) || 0)
+    .filter(rowIndex => rowIndex >= 2)
+    .sort((a, b) => a - b);
+
+  if (!sortedRowIndexes.length) return;
+
+  const rowBlocks = [];
+  let blockStart = sortedRowIndexes[0];
+  let blockEnd = sortedRowIndexes[0];
+
+  for (let i = 1; i < sortedRowIndexes.length; i++) {
+    const rowIndex = sortedRowIndexes[i];
+    if (rowIndex === blockEnd + 1) {
+      blockEnd = rowIndex;
+      continue;
+    }
+    rowBlocks.push([blockStart, blockEnd]);
+    blockStart = rowIndex;
+    blockEnd = rowIndex;
+  }
+  rowBlocks.push([blockStart, blockEnd]);
+
+  rowBlocks.forEach(block => {
+    const startRow = block[0];
+    const endRow = block[1];
+    const blockLength = endRow - startRow + 1;
+    const innerValues = [];
+    const masterValues = [];
+
+    for (let rowIndex = startRow; rowIndex <= endRow; rowIndex++) {
+      innerValues.push([values[rowIndex - 1][col.Inner_Carton]]);
+      masterValues.push([values[rowIndex - 1][col.Master_Case]]);
+    }
+
+    sheet.getRange(startRow, col.Inner_Carton + 1, blockLength, 1).setValues(innerValues);
+    sheet.getRange(startRow, col.Master_Case + 1, blockLength, 1).setValues(masterValues);
+  });
 }
 
 function resolveCatalogPairedCartonValue_(values) {
