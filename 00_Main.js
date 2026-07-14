@@ -3303,9 +3303,22 @@ function runCatalogSlidesProductionStep_(job, progressCallback) {
       startIndex,
       endIndex,
       nextJob.runId || '',
-      function(partialNextPageIndex) {
-        nextJob.nextPageIndex = partialNextPageIndex;
-        nextJob.progressPageIndex = partialNextPageIndex;
+      function(progressUpdate) {
+        const nextProgress = typeof progressUpdate === 'object'
+          ? Object.assign({}, progressUpdate)
+          : { nextPageIndex: progressUpdate, progressPageIndex: progressUpdate };
+        if (nextProgress.nextPageIndex !== undefined) {
+          nextJob.nextPageIndex = nextProgress.nextPageIndex;
+        }
+        if (nextProgress.progressPageIndex !== undefined) {
+          nextJob.progressPageIndex = nextProgress.progressPageIndex;
+        }
+        if (nextProgress.buildingPageIndex !== undefined) {
+          nextJob.buildingPageIndex = nextProgress.buildingPageIndex;
+        }
+        if (nextProgress.pagePhase !== undefined) {
+          nextJob.pagePhase = nextProgress.pagePhase;
+        }
         nextJob.progressAnchorAt = getCatalogTimestamp_();
         if (typeof progressCallback === 'function') {
           progressCallback(Object.assign({}, nextJob));
@@ -3315,6 +3328,8 @@ function runCatalogSlidesProductionStep_(job, progressCallback) {
 
     nextJob.nextPageIndex = endIndex;
     nextJob.progressPageIndex = endIndex;
+    nextJob.buildingPageIndex = '';
+    nextJob.pagePhase = '';
     nextJob.progressAnchorAt = getCatalogTimestamp_();
     if (endIndex >= context.pages.length) {
       nextJob.stage = 'append_terms';
@@ -3541,6 +3556,7 @@ function appendCatalogSlidesPagesChunk_(deckFileId, meta, pages, sheetDefinition
     () => SlidesApp.openById(deckFileId)
   );
   const templateSlides = {};
+  const saveEveryPages = 2;
 
   if (startIndex === 0) {
     resetCopiedCatalogDeckToCoverSlide_(presentation);
@@ -3553,6 +3569,14 @@ function appendCatalogSlidesPagesChunk_(deckFileId, meta, pages, sheetDefinition
     const page = pages[index];
     const templateId = String(sheetDefinitions[page.template] || '').trim();
     if (!templateId) throw new Error(`Missing template ID for ${page.template}.`);
+    if (typeof progressCallback === 'function') {
+      progressCallback({
+        nextPageIndex: Math.max(startIndex, index),
+        progressPageIndex: Math.max(startIndex, index),
+        buildingPageIndex: index + 1,
+        pagePhase: 'Rendering page'
+      });
+    }
 
     if (!templateSlides[templateId]) {
       const templatePresentation = runSlidesOperationWithRetry_(
@@ -3565,9 +3589,30 @@ function appendCatalogSlidesPagesChunk_(deckFileId, meta, pages, sheetDefinition
     const slide = presentation.appendSlide(templateSlides[templateId]);
     fillCatalogProductSlide_(slide, meta, page, index + 2, runId);
     throwCatalogProductionCancelledIfNeeded_(runId);
+    const pagesSinceChunkStart = (index - startIndex) + 1;
+    const shouldSaveNow = ((pagesSinceChunkStart % saveEveryPages) === 0) || index === endIndex - 1;
+
+    if (!shouldSaveNow) {
+      continue;
+    }
+
+    if (typeof progressCallback === 'function') {
+      progressCallback({
+        nextPageIndex: Math.max(startIndex, index),
+        progressPageIndex: Math.max(startIndex, index),
+        buildingPageIndex: index + 1,
+        pagePhase: 'Saving page'
+      });
+    }
+
     runSlidesOperationWithRetry_(`Save ${meta.deckName} page ${index + 1}`, () => presentation.saveAndClose());
     if (typeof progressCallback === 'function') {
-      progressCallback(index + 1);
+      progressCallback({
+        nextPageIndex: index + 1,
+        progressPageIndex: index + 1,
+        buildingPageIndex: index + 1,
+        pagePhase: 'Page saved'
+      });
     }
     if (index + 1 < endIndex) {
       throwCatalogProductionCancelledIfNeeded_(runId);

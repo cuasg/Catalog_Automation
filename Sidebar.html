@@ -2027,6 +2027,8 @@
         if (job.type === 'catalog_pdf') {
           const totalPages = Number(job.totalPages) || 0;
           const nextPageIndex = Number(job.progressPageIndex !== undefined ? job.progressPageIndex : job.nextPageIndex) || 0;
+          const buildingPageIndex = Math.max(0, Number(job.buildingPageIndex) || 0);
+          const pagePhase = String(job.pagePhase || '').trim();
           const stage = String(job.stage || 'init');
           const initStepLabel = String(job.initStepLabel || '').trim();
           const initStepIndex = Math.max(0, Number(job.initStepIndex) || 0);
@@ -2039,6 +2041,9 @@
             return 'Preparing deck';
           }
           if (stage === 'append_pages' && totalPages) {
+            if (pagePhase && buildingPageIndex) {
+              return Math.min(totalPages, nextPageIndex) + ' of ' + totalPages + ' pages saved | ' + pagePhase + ' ' + buildingPageIndex;
+            }
             return Math.min(totalPages, nextPageIndex) + ' of ' + totalPages + ' pages saved';
           }
           if (stage === 'append_terms') return 'Adding terms page';
