@@ -4498,55 +4498,55 @@ function getCatalogSectionLayoutOverride_(section, titleText) {
     {
       productGroup: 'valves',
       fittingType: 'dielectric unions',
-      specTitleClearance: 1.6
+      specTitleClearance: 2.8
     },
     {
       productGroup: 'valves',
       fittingType: 'y-strainer',
       variant2: 'bronze - threaded',
-      specTitleClearance: 1.6
+      specTitleClearance: 2.8
     },
     {
       productGroup: 'valves',
       fittingType: 'swing check valves',
       variant2: 'stainless - threaded',
-      specTitleClearance: 1.6
+      specTitleClearance: 2.8
     },
     {
       productGroup: 'valves',
       fittingType: 'hose stop',
       variant2: 'stainless - fpt',
-      specTitleClearance: 1.6
+      specTitleClearance: 2.8
     },
     {
       productGroup: 'valves',
       fittingType: 'hose stop',
       variant2: 'stainless - mpt',
-      specTitleClearance: 1.6
+      specTitleClearance: 2.8
     },
     {
       productGroup: 'valves',
       fittingType: 'gate valves',
       variant2: 'bronze - threaded',
-      contentTopOffset: 2.0
+      contentTopOffset: 3.4
     },
     {
       productGroup: 'valves',
       fittingType: 'globe valve',
       variant2: 'bronze - 125lb',
-      contentTopOffset: 2.0
+      contentTopOffset: 3.4
     },
     {
       productGroup: 'valves',
       fittingType: 'gate valves',
       variant2: 'bronze - cxc',
-      contentTopOffset: 2.0
+      contentTopOffset: 3.4
     },
     {
       productGroup: 'valves',
       fittingType: 'gate valves',
       variant2: 'stainless - threaded',
-      contentTopOffset: 2.0
+      contentTopOffset: 3.4
     }
   ];
 
