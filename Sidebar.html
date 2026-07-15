@@ -942,7 +942,8 @@
         runId: '',
         runBaselineTotalMs: 0,
         jobKey: '',
-        jobBaselineTotalMs: 0
+        jobBaselineTotalMs: 0,
+        jobDisplayEstimateMs: 0
       };
       let activeTab = normalizeTabName(initialTab);
       let editingRuleRowNumber = null;
@@ -1881,7 +1882,8 @@
           runId: '',
           runBaselineTotalMs: 0,
           jobKey: '',
-          jobBaselineTotalMs: 0
+          jobBaselineTotalMs: 0,
+          jobDisplayEstimateMs: 0
         };
         progressState.operation.floorPercent = 0;
         progressState.operation.token = '';
@@ -1965,7 +1967,8 @@
           runId: '',
           runBaselineTotalMs: 0,
           jobKey: '',
-          jobBaselineTotalMs: 0
+          jobBaselineTotalMs: 0,
+          jobDisplayEstimateMs: 0
         };
         progressState.operation.floorPercent = 0;
         progressState.operation.token = '';
@@ -2014,7 +2017,8 @@
           runId: '',
           runBaselineTotalMs: 0,
           jobKey: '',
-          jobBaselineTotalMs: 0
+          jobBaselineTotalMs: 0,
+          jobDisplayEstimateMs: 0
         };
         progressState.operation.floorPercent = 0;
         progressState.operation.token = '';
@@ -2365,7 +2369,8 @@
             runId: '',
             runBaselineTotalMs: 0,
             jobKey: '',
-            jobBaselineTotalMs: 0
+            jobBaselineTotalMs: 0,
+            jobDisplayEstimateMs: 0
           };
           return;
         }
@@ -2379,34 +2384,56 @@
           estimateState.runBaselineTotalMs = getInitialRunBaselineTotalMs(status);
           estimateState.jobKey = '';
           estimateState.jobBaselineTotalMs = 0;
+          estimateState.jobDisplayEstimateMs = 0;
         }
 
         if (estimateState.jobKey !== nextJobKey) {
           estimateState.jobKey = nextJobKey;
           estimateState.jobBaselineTotalMs = getBaselineJobExpectedMs(nextJob, status);
+          estimateState.jobDisplayEstimateMs = estimateState.jobBaselineTotalMs;
         }
 
         const currentJobElapsedMs = getCurrentJobElapsedMs(status);
+        const percent = Math.max(0, Math.min(0.995, getLiveJobPercent(nextJob, status) / 100));
+        const projectedJobTotalMs = getProjectedJobTotalMs(nextJob, status);
+        const baselineMs = Math.max(0, Number(estimateState.jobBaselineTotalMs) || 0);
+        const adaptiveWeight = Math.max(0, Math.min(0.85, percent));
+        let targetDisplayEstimateMs = baselineMs;
+
+        if (projectedJobTotalMs && baselineMs) {
+          targetDisplayEstimateMs = Math.round((baselineMs * (1 - adaptiveWeight)) + (projectedJobTotalMs * adaptiveWeight));
+        } else if (projectedJobTotalMs) {
+          targetDisplayEstimateMs = projectedJobTotalMs;
+        }
+
+        if (!estimateState.jobDisplayEstimateMs) {
+          estimateState.jobDisplayEstimateMs = targetDisplayEstimateMs || baselineMs || currentJobElapsedMs;
+        }
+
+        const currentDisplayEstimateMs = Math.max(currentJobElapsedMs, Number(estimateState.jobDisplayEstimateMs) || 0);
+        if (targetDisplayEstimateMs > currentDisplayEstimateMs) {
+          estimateState.jobDisplayEstimateMs = Math.round(
+            currentDisplayEstimateMs + ((targetDisplayEstimateMs - currentDisplayEstimateMs) * 0.28)
+          );
+        } else {
+          estimateState.jobDisplayEstimateMs = Math.round(
+            currentDisplayEstimateMs - ((currentDisplayEstimateMs - targetDisplayEstimateMs) * 0.12)
+          );
+        }
+
+        estimateState.jobDisplayEstimateMs = Math.max(
+          Math.round(currentJobElapsedMs * 1.03),
+          estimateState.jobDisplayEstimateMs || 0
+        );
+
         if (currentJobElapsedMs > estimateState.jobBaselineTotalMs) {
           estimateState.jobBaselineTotalMs = Math.round(currentJobElapsedMs * 1.08);
-        } else {
-          const projectedJobTotalMs = getProjectedJobTotalMs(nextJob, status);
-          if (projectedJobTotalMs > estimateState.jobBaselineTotalMs * 1.12) {
-            const liftedJobTotalMs = Math.min(
-              projectedJobTotalMs,
-              Math.max(
-                Math.round(estimateState.jobBaselineTotalMs * 1.08),
-                Math.round(currentJobElapsedMs * 1.08)
-              )
-            );
-            estimateState.jobBaselineTotalMs = Math.max(estimateState.jobBaselineTotalMs, liftedJobTotalMs);
-          }
         }
 
         const queuedJobs = (status.jobs || []).slice((Number(status.nextJobIndex) || 0) + 1);
         const queuedBaselineMs = queuedJobs.reduce((sum, job) => sum + getBaselineJobExpectedMs(job, status), 0);
         const completedActualMs = getCompletedActualDurationMs(status);
-        const runFloorMs = completedActualMs + estimateState.jobBaselineTotalMs + queuedBaselineMs;
+        const runFloorMs = completedActualMs + Math.max(estimateState.jobBaselineTotalMs, estimateState.jobDisplayEstimateMs || 0) + queuedBaselineMs;
         estimateState.runBaselineTotalMs = Math.max(estimateState.runBaselineTotalMs, runFloorMs, getRunElapsedMs(status));
       }
 
@@ -2588,7 +2615,12 @@
         if (!nextJob) return 0;
 
         const elapsedMs = getCurrentJobElapsedMs(status);
-        return Math.max(elapsedMs, estimateState.jobBaselineTotalMs || getBaselineJobExpectedMs(nextJob, status));
+        return Math.max(
+          elapsedMs,
+          estimateState.jobDisplayEstimateMs ||
+          estimateState.jobBaselineTotalMs ||
+          getBaselineJobExpectedMs(nextJob, status)
+        );
       }
 
       function getCurrentJobRemainingMs(status) {
