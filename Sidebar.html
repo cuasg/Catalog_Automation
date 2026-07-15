@@ -2634,10 +2634,12 @@
         let initMs = clampNumber(Math.round(fallbackTotalMs * 0.14), 9000, 45000);
         let termsMs = hasTermsStage ? clampNumber(Math.round(fallbackTotalMs * 0.035), 1500, 7000) : 0;
         let exportMs = clampNumber(Math.round(fallbackTotalMs * 0.08), 3500, 14000);
-        let pageBudgetMs = totalPages
-          ? Math.max(totalPages * 5200, fallbackTotalMs - initMs - termsMs - exportMs)
-          : 0;
-        let perPageMs = totalPages ? Math.max(5200, pageBudgetMs / totalPages) : 0;
+        const estimatedPageCount = Math.max(1, totalPages);
+        let pageBudgetMs = Math.max(
+          estimatedPageCount * 5200,
+          fallbackTotalMs - initMs - termsMs - exportMs
+        );
+        let perPageMs = Math.max(5200, pageBudgetMs / estimatedPageCount);
 
         const stage = String(job && job.stage || 'init');
         const elapsedTotalMs = getJobElapsedMs(job, status);
@@ -2971,6 +2973,11 @@
         if (!totalJobs) return 0;
         if (!nextJob || !isProductionStatusActive(status)) {
           return totalJobs ? (completed / totalJobs) * 100 : 100;
+        }
+
+        // A one-job production run is the current operation, so both bars must agree.
+        if (totalJobs === 1) {
+          return Math.min(99.2, getLiveJobPercent(nextJob, status));
         }
 
         const jobs = status.jobs || [];
