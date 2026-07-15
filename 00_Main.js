@@ -4104,6 +4104,7 @@ function queueCatalogProductionSelection_(options) {
 function queueCatalogProductionJobs_(jobs, mode, counts) {
   const properties = PropertiesService.getScriptProperties();
   const propertyName = 'CATALOG_PRODUCTION_QUEUE';
+  const workbook = getCatalogWorkbook_();
   const existingQueue = properties.getProperty(propertyName);
 
   if (existingQueue) {
@@ -4116,7 +4117,7 @@ function queueCatalogProductionJobs_(jobs, mode, counts) {
 
   if (!jobs.length) throw new Error(`No active jobs found for ${mode}.`);
 
-  const logSheet = getCatalogWorkbook_().getSheetByName('Generation_Log');
+  const logSheet = workbook.getSheetByName('Generation_Log');
   const state = {
     active: true,
     runId: Utilities.getUuid(),
@@ -4152,7 +4153,7 @@ function queueCatalogProductionJobs_(jobs, mode, counts) {
 
   scheduleCatalogProductionTrigger_(1000);
   const returnState = Object.assign({}, state, {
-    runtimeStats: getCatalogProductionRuntimeStats_(ss)
+    runtimeStats: getCatalogProductionRuntimeStats_(workbook)
   });
   return {
     ok: true,
