@@ -4962,31 +4962,31 @@ function getCatalogSectionLayoutOverride_(section, titleText) {
     {
       productGroup: 'valves',
       fittingType: 'dielectric unions',
-      specTitleClearance: 2.8
+      specTitleClearance: 5.8
     },
     {
       productGroup: 'valves',
       fittingType: 'y-strainer',
       variant2: 'cast bronze - threaded',
-      specTitleClearance: 2.8
+      specTitleClearance: 5.8
     },
     {
       productGroup: 'valves',
       fittingType: 'swing check valves',
       variant2: 'stainless - threaded',
-      specTitleClearance: 2.8
+      specTitleClearance: 5.8
     },
     {
       productGroup: 'valves',
       fittingType: 'hose stop',
       variant2: 'cast brass - fpt',
-      specTitleClearance: 2.8
+      specTitleClearance: 5.8
     },
     {
       productGroup: 'valves',
       fittingType: 'hose stop',
       variant2: 'cast brass - mpt',
-      specTitleClearance: 2.8
+      specTitleClearance: 5.8
     },
     {
       productGroup: 'valves',
