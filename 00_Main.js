@@ -1215,7 +1215,7 @@ function getCatalogMetadataOptionsForSidebar_(ss) {
     const plcRaw = String(getOptionalCellValue_(row, col, 'PLC') || '').trim();
     const catalogCode = String(getOptionalCellValue_(row, col, 'Catalog_Code') || '').trim();
     const versionCode = String(getOptionalCellValue_(row, col, 'Version_Code') || '').trim();
-    const effectiveDate = String(getOptionalCellValue_(row, col, 'Effective_Date') || '').trim();
+    const effectiveDate = formatMetadataEffectiveDateForSidebar_(getOptionalCellValue_(row, col, 'Effective_Date'));
 
     if (productGroup && !groupSeen[productGroup]) {
       groupSeen[productGroup] = true;
@@ -1245,6 +1245,49 @@ function getCatalogMetadataOptionsForSidebar_(ss) {
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
       .map(plc => plcSeen[plc])
   };
+}
+
+function formatMetadataEffectiveDateForSidebar_(value) {
+  if (value === '' || value === null || value === undefined) return '';
+
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    return Utilities.formatDate(value, getCatalogTimeZone_(), 'MM/dd/yyyy');
+  }
+
+  const raw = String(value).trim();
+  if (!raw) return '';
+
+  const parsed = new Date(raw);
+  if (!isNaN(parsed.getTime())) {
+    return Utilities.formatDate(parsed, getCatalogTimeZone_(), 'MM/dd/yyyy');
+  }
+
+  return raw;
+}
+
+function normalizeMetadataEffectiveDateInput_(value) {
+  const raw = String(value === null || value === undefined ? '' : value).trim();
+  if (!raw) return '';
+
+  const mmddyyyyMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (mmddyyyyMatch) {
+    const month = mmddyyyyMatch[1].padStart(2, '0');
+    const day = mmddyyyyMatch[2].padStart(2, '0');
+    const year = mmddyyyyMatch[3];
+    return `${month}/${day}/${year}`;
+  }
+
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    return `${isoMatch[2]}/${isoMatch[3]}/${isoMatch[1]}`;
+  }
+
+  const parsed = new Date(raw);
+  if (!isNaN(parsed.getTime())) {
+    return Utilities.formatDate(parsed, getCatalogTimeZone_(), 'MM/dd/yyyy');
+  }
+
+  return raw;
 }
 
 function setProductionModeFromSidebar(enabled) {
@@ -2763,7 +2806,7 @@ function saveCatalogMetadataFromSidebar(input) {
   const targetValue = String(payload.targetValue || '').trim();
   const catalogCode = String(payload.catalogCode || '').trim();
   const versionCode = String(payload.versionCode || '').trim();
-  const effectiveDate = String(payload.effectiveDate || '').trim();
+  const effectiveDate = normalizeMetadataEffectiveDateInput_(payload.effectiveDate);
   const ss = getCatalogWorkbook_();
   const sheet = ss.getSheetByName('Catalog_Groups');
   const logSheet = ss.getSheetByName('Generation_Log');
