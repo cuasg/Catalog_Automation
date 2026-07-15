@@ -5690,17 +5690,18 @@ function buildPriceFileSheet_(sheet, rows, col, meta, progressCallback) {
   sheet.setRowHeight(3, 32);
   sheet.setColumnWidth(1, 125);
   sheet.setColumnWidth(2, 145);
+  sheet.setColumnWidth(8, 120);
 
   // Header
-  sheet.getRange('D1:G1').merge();
+  sheet.getRange('D1:H1').merge();
   sheet.getRange('D1').setValue(meta.title);
 
-  sheet.getRange('D2:G2').merge();
+  sheet.getRange('D2:H2').merge();
   sheet.getRange('D2').setValue(
     meta.subtitle ? `${meta.subtitle} (${meta.versionCode})` : meta.versionCode
   );
 
-  sheet.getRange('D3:G3').merge();
+  sheet.getRange('D3:H3').merge();
   sheet.getRange('D3').setValue(
     'Enter your multiplier next to each PLC below. Net Ea will calculate automatically from the List Price.'
   );
