@@ -2629,6 +2629,9 @@ function runMsiAutomationAction(action, productGroup) {
     case 'generateAll':
       return startFullCatalogProductionRun();
 
+    case 'repairCartons':
+      return repairCatalogInnerMasterCartonCounts();
+
     case 'runPreflight':
       return {
         ok: true,
@@ -4108,7 +4111,7 @@ function startCatalogProductionRun_(includeCatalogPdfs, includePriceFiles, mode)
 }
 
 function queueExplicitCatalogProductionJobs_(jobs, mode) {
-  const explicitJobs = prependAutomaticCartonNormalizationJob_((jobs || []).slice());
+  const explicitJobs = (jobs || []).slice();
   if (!explicitJobs.length) throw new Error(`No jobs found for ${mode}.`);
 
   return queueCatalogProductionJobs_(explicitJobs, mode, {
@@ -4126,7 +4129,7 @@ function queueCatalogProductionSelection_(options) {
 
   const values = groupSheet.getDataRange().getValues();
   const col = headerMap_(values[0]);
-  const jobs = prependAutomaticCartonNormalizationJob_(buildCatalogProductionJobs_(values.slice(1), col, options));
+  const jobs = buildCatalogProductionJobs_(values.slice(1), col, options);
   const catalogJobs = jobs.filter(job => job.type === 'catalog_pdf');
   const priceJobs = jobs.filter(job => job.type === 'price_file');
 
@@ -4206,18 +4209,6 @@ function queueCatalogProductionJobs_(jobs, mode, counts) {
       'The run now continues on Google infrastructure, so it is safe to close the dialog, browser, or local machine after queue confirmation.',
     status: returnState
   };
-}
-
-function prependAutomaticCartonNormalizationJob_(jobs) {
-  const queue = (jobs || []).slice();
-  const needsGenerationNormalization = queue.some(job => job.type === 'price_file');
-  const alreadyIncluded = queue.some(job => job.type === 'repair_cartons');
-
-  if (needsGenerationNormalization && !alreadyIncluded) {
-    queue.unshift({ type: 'repair_cartons', fileName: 'Normalize Inner and Master Cartons' });
-  }
-
-  return queue;
 }
 
 function buildCatalogProductionJobs_(groupRows, col, options) {

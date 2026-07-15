@@ -655,7 +655,7 @@
     <div class="app">
       <div class="hero">
         <h1>MSI Automation</h1>
-        <p>Use the workflow below to update pricing, repair carton counts, and generate some or all price lists and catalogs.</p>
+        <p>Use the workflow below to update pricing, run maintenance tasks, and generate some or all price lists and catalogs.</p>
       </div>
 
       <div id="productionSafetyBanner"></div>
@@ -876,8 +876,10 @@
       <div id="maintenance" class="panel">
         <div class="section">
           <h2>Maintenance Tools</h2>
-          <p>Use these queue and recovery tools to monitor production and rerun failures when needed.</p>
+          <p>Use these maintenance and recovery tools to normalize source data, monitor production, and rerun failures when needed.</p>
           <div class="stack">
+            <button class="button green" data-action="generateAll" title="Queues every active catalog PDF and price-list job from Catalog_Groups.">Generate All Active Catalogs + Price Lists</button>
+            <button class="button secondary" data-action="repairCartons" title="Normalizes paired Inner Carton and Master Carton values on Catalog_SKUs before generation runs.">Normalize Paired Carton Counts</button>
             <button class="button secondary" data-action="productionStatus" title="Refresh the current queue status or last completed run.">Refresh Production Status</button>
             <button class="button secondary" data-action="rerunFailedJobs" title="Queues only the failed jobs from the most recent production summary.">Rerun Failed Jobs</button>
             <button class="button secondary" data-action="cancelProduction" title="Stops the active queued production run.">Cancel Active Production Run</button>
@@ -933,8 +935,8 @@
       let lastProgressAnimationAt = 0;
       let latestProductionStatus = null;
       let progressState = {
-        operation: { displayedPercent: 0, targetPercent: 0, targetText: 'Current Operation: Idle', targetDetail: '0%' },
-        run: { displayedPercent: 0, targetPercent: 0, targetText: 'Production Run: Idle', targetDetail: '0%' }
+        operation: { displayedPercent: 0, targetPercent: 0, floorPercent: 0, token: '', targetText: 'Current Operation: Idle', targetDetail: '0%' },
+        run: { displayedPercent: 0, targetPercent: 0, floorPercent: 0, token: '', targetText: 'Production Run: Idle', targetDetail: '0%' }
       };
       let estimateState = {
         runId: '',
@@ -973,9 +975,17 @@
         document.getElementById(key + 'ProgressShell').classList.toggle('active', isProductionStatusActive(latestProductionStatus));
       }
 
-      function setProgressTarget(key, percent, text, detail, force) {
+      function setProgressTarget(key, percent, text, detail, force, token) {
         const state = progressState[key];
-        state.targetPercent = Math.max(0, Math.min(100, Number(percent) || 0));
+        const nextToken = String(token || '');
+        if (state.token !== nextToken) {
+          state.token = nextToken;
+          state.floorPercent = 0;
+        }
+
+        const clampedPercent = Math.max(0, Math.min(100, Number(percent) || 0));
+        state.floorPercent = Math.max(state.floorPercent || 0, clampedPercent);
+        state.targetPercent = state.floorPercent;
         state.targetText = text || 'Idle';
         state.targetDetail = detail || (Math.round(state.targetPercent) + '%');
 
@@ -1197,7 +1207,7 @@
           buildWorkflowStep('1. Review Overview', 'Check workbook size, active groups, and the last production summary before making changes.', 'Ready', 'good'),
           buildWorkflowStep('2. Run Preflight', preflight.ready ? 'Workbook passed blocking validation checks.' : 'Resolve blocking issues before queuing production.', preflight.ready ? 'Passed' : (preflight.errorCount + ' Errors'), preflight.ready ? 'good' : 'bad'),
           buildWorkflowStep('3. Recalculate Pricing', summary.latestPricingRun ? ('Last run: ' + summary.latestPricingRun) : 'Recalculate pricing after rule or source-price changes.', summary.latestPricingRun ? 'Done' : 'Pending', summary.latestPricingRun ? 'good' : 'warn'),
-          buildWorkflowStep('4. Generate Outputs', hasCompletedRun ? (hasFailures ? 'Latest run finished with failures. Use Maintenance to rerun failed jobs.' : 'Latest run completed successfully.') : 'Queue price lists and catalogs after preflight is clean. Paired carton counts are normalized automatically during generation.', hasCompletedRun ? (hasFailures ? 'Attention' : 'Done') : 'Ready', hasCompletedRun ? (hasFailures ? 'warn' : 'good') : 'good')
+          buildWorkflowStep('4. Generate Outputs', hasCompletedRun ? (hasFailures ? 'Latest run finished with failures. Use Maintenance to rerun failed jobs.' : 'Latest run completed successfully.') : 'Queue price lists and catalogs after preflight is clean. Run carton normalization from Maintenance when SKU source data changes.', hasCompletedRun ? (hasFailures ? 'Attention' : 'Done') : 'Ready', hasCompletedRun ? (hasFailures ? 'warn' : 'good') : 'good')
         ].join('');
       }
 
@@ -1319,6 +1329,7 @@
           const isGenerationAction =
             action === 'generateAllPriceLists' ||
             action === 'generateAllCatalogs' ||
+            action === 'generateAll' ||
             action === 'generatePriceList' ||
             action === 'generateCatalog';
 
@@ -1872,6 +1883,10 @@
           jobKey: '',
           jobBaselineTotalMs: 0
         };
+        progressState.operation.floorPercent = 0;
+        progressState.operation.token = '';
+        progressState.run.floorPercent = 0;
+        progressState.run.token = '';
         progressState.operation.displayedPercent = 0;
         progressState.run.displayedPercent = 0;
         setProgressTarget('operation', 0, 'Current Operation: ' + getBusyMessage(action, productGroup), 'Starting', true);
@@ -1952,6 +1967,10 @@
           jobKey: '',
           jobBaselineTotalMs: 0
         };
+        progressState.operation.floorPercent = 0;
+        progressState.operation.token = '';
+        progressState.run.floorPercent = 0;
+        progressState.run.token = '';
         progressState.operation.displayedPercent = 0;
         progressState.run.displayedPercent = 0;
         setProgressTarget('operation', 0, 'Current Operation: Queueing selected catalog PDFs...', 'Starting', true);
@@ -1997,6 +2016,10 @@
           jobKey: '',
           jobBaselineTotalMs: 0
         };
+        progressState.operation.floorPercent = 0;
+        progressState.operation.token = '';
+        progressState.run.floorPercent = 0;
+        progressState.run.token = '';
         progressState.operation.displayedPercent = 0;
         progressState.run.displayedPercent = 0;
         setProgressTarget('operation', 0, 'Current Operation: Queueing selected price lists...', 'Starting', true);
@@ -2033,6 +2056,7 @@
         if (action === 'generateAllCatalogs') return 'Queueing all active catalog PDFs...';
         if (action === 'generateAllPriceLists') return 'Queueing all active price lists...';
         if (action === 'generateAll') return 'Queueing all active catalogs and price lists...';
+        if (action === 'repairCartons') return 'Normalizing paired carton counts...';
         if (action === 'previewCatalog') return 'Building preview for ' + productGroup + ' catalog layout...';
         if (action === 'calculatePricing') return 'Recalculating pricing...';
         if (action === 'productionStatus') return 'Refreshing production status...';
@@ -2642,6 +2666,14 @@
           if (!totalRows) {
             const stepIndex = Math.max(0, Number(job.priceFileStepIndex) || 0);
             const totalSteps = Math.max(0, Number(job.priceFileTotalSteps) || 0);
+            const prepTotalRows = Math.max(0, Number(job.prepTotalRows) || 0);
+            const prepProcessedRows = Math.max(0, Number(job.prepProcessedRows) || 0);
+            if (prepTotalRows) {
+              const prepBase = totalSteps ? ((Math.max(0, stepIndex - 1) / Math.max(1, totalSteps)) * 24) : 4;
+              const prepSlice = totalSteps ? (24 / Math.max(1, totalSteps)) : 20;
+              const prepRowFraction = Math.min(0.985, prepProcessedRows / Math.max(1, prepTotalRows));
+              return Math.min(24, prepBase + (prepSlice * prepRowFraction));
+            }
             const prepStepFraction = totalSteps ? Math.min(0.98, stepIndex / totalSteps) : 0;
             const prepElapsedFraction = Math.min(0.98, elapsedMs / 4000);
             return Math.min(24, 4 + (Math.max(prepStepFraction, prepElapsedFraction) * 20));
@@ -2661,6 +2693,14 @@
           if (!totalGroups) {
             const prepStepIndex = Math.max(0, Number(job.prepStepIndex) || 0);
             const prepTotalSteps = Math.max(0, Number(job.prepTotalSteps) || 0);
+            const prepTotalRows = Math.max(0, Number(job.prepTotalRows) || 0);
+            const prepProcessedRows = Math.max(0, Number(job.prepProcessedRows) || 0);
+            if (prepTotalRows) {
+              const prepBase = prepTotalSteps ? ((Math.max(0, prepStepIndex - 1) / Math.max(1, prepTotalSteps)) * 18) : 4;
+              const prepSlice = prepTotalSteps ? (18 / Math.max(1, prepTotalSteps)) : 14;
+              const prepRowFraction = Math.min(0.985, prepProcessedRows / Math.max(1, prepTotalRows));
+              return Math.min(18, prepBase + (prepSlice * prepRowFraction));
+            }
             const prepStepFraction = prepTotalSteps ? Math.min(0.98, prepStepIndex / prepTotalSteps) : 0;
             const prepElapsedFraction = Math.min(0.98, elapsedMs / 2500);
             return Math.min(18, 4 + (Math.max(prepStepFraction, prepElapsedFraction) * 14));
@@ -2808,8 +2848,13 @@
         const operationModel = buildOperationProgressModel(latestProductionStatus);
         const runModel = buildRunProgressModel(latestProductionStatus);
         const force = !latestProductionStatus || runModel.percent === 100;
-        setProgressTarget('operation', operationModel.percent, operationModel.text, operationModel.detail, force);
-        setProgressTarget('run', runModel.percent, runModel.text, runModel.detail, force);
+        const nextJob = latestProductionStatus && latestProductionStatus.jobs && latestProductionStatus.jobs[latestProductionStatus.nextJobIndex]
+          ? latestProductionStatus.jobs[latestProductionStatus.nextJobIndex]
+          : null;
+        const operationToken = nextJob ? getJobKey(nextJob) : '';
+        const runToken = latestProductionStatus && latestProductionStatus.runId ? String(latestProductionStatus.runId) : '';
+        setProgressTarget('operation', operationModel.percent, operationModel.text, operationModel.detail, force, operationToken);
+        setProgressTarget('run', runModel.percent, runModel.text, runModel.detail, force, runToken);
       }
 
       function refreshLiveProductionDisplays(status) {
