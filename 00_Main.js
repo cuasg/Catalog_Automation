@@ -557,30 +557,43 @@ function runCatalogCartonRepairStep_(job, progressCallback) {
   updateRepairProgress({
     prepTotalSteps: 4,
     prepStepIndex: 1,
-    prepStepLabel: 'Grouping paired variants'
+    prepStepLabel: 'Grouping paired variants',
+    prepTotalRows: Math.max(0, values.length - 1),
+    prepProcessedRows: 0
   });
 
   for (let i = 1; i < values.length; i++) {
     const row = values[i];
-    if (!isTruthy_(row[col.Active])) continue;
-    if (!row[col.Item_Number]) continue;
+    if (isTruthy_(row[col.Active]) && row[col.Item_Number]) {
+      const pairKey = buildPairKey_(row, col);
+      if (pairKey) {
+        if (!groupMap[pairKey]) groupMap[pairKey] = [];
+        groupMap[pairKey].push({
+          rowIndex: i + 1,
+          variant: getDisplayVariantName_(row[col.Variant] || ''),
+          innerCarton: row[col.Inner_Carton],
+          masterCase: row[col.Master_Case]
+        });
+      }
+    }
 
-    const pairKey = buildPairKey_(row, col);
-    if (!pairKey) continue;
-
-    if (!groupMap[pairKey]) groupMap[pairKey] = [];
-    groupMap[pairKey].push({
-      rowIndex: i + 1,
-      variant: getDisplayVariantName_(row[col.Variant] || ''),
-      innerCarton: row[col.Inner_Carton],
-      masterCase: row[col.Master_Case]
-    });
+    if ((i % 250) === 0 || i === values.length - 1) {
+      updateRepairProgress({
+        prepTotalSteps: 4,
+        prepStepIndex: 1,
+        prepStepLabel: 'Grouping paired variants',
+        prepTotalRows: Math.max(0, values.length - 1),
+        prepProcessedRows: i
+      });
+    }
   }
 
   updateRepairProgress({
     prepTotalSteps: 4,
     prepStepIndex: 2,
-    prepStepLabel: 'Sorting pair groups'
+    prepStepLabel: 'Sorting pair groups',
+    prepTotalRows: Math.max(0, values.length - 1),
+    prepProcessedRows: Math.max(0, values.length - 1)
   });
 
   const pairKeys = Object.keys(groupMap).sort((a, b) => a.localeCompare(b));
@@ -596,6 +609,8 @@ function runCatalogCartonRepairStep_(job, progressCallback) {
     prepTotalSteps: 4,
     prepStepIndex: 3,
     prepStepLabel: 'Scanning carton mismatches',
+    prepTotalRows: Math.max(0, values.length - 1),
+    prepProcessedRows: Math.max(0, values.length - 1),
     totalGroups,
     nextGroupIndex: startGroupIndex
   });
@@ -2906,15 +2921,35 @@ function runCatalogPriceFileProductionStep_(job, progressCallback) {
   updatePriceFileProgress({
     priceFileTotalSteps: 6,
     priceFileStepIndex: 3,
-    priceFilePhase: 'Filtering SKU rows'
+    priceFilePhase: 'Filtering SKU rows',
+    prepTotalRows: Math.max(0, skuValues.length - 1),
+    prepProcessedRows: 0
   });
 
-  const rows = skuValues.slice(1).filter(row =>
-    isTruthy_(row[skuCol.Active]) &&
-    String(row[skuCol.Product_Group]).trim() === productGroup &&
-    matchesOptionalGroupPlc_(row, skuCol, groupPlc) &&
-    row[skuCol.Item_Number]
-  ).sort((a, b) => comparePriceFileRows_(a, b, skuCol));
+  const rows = [];
+  for (let i = 1; i < skuValues.length; i++) {
+    const row = skuValues[i];
+    if (
+      isTruthy_(row[skuCol.Active]) &&
+      String(row[skuCol.Product_Group]).trim() === productGroup &&
+      matchesOptionalGroupPlc_(row, skuCol, groupPlc) &&
+      row[skuCol.Item_Number]
+    ) {
+      rows.push(row);
+    }
+
+    if ((i % 250) === 0 || i === skuValues.length - 1) {
+      throwIfCancelled();
+      updatePriceFileProgress({
+        priceFileTotalSteps: 6,
+        priceFileStepIndex: 3,
+        priceFilePhase: 'Filtering SKU rows',
+        prepTotalRows: Math.max(0, skuValues.length - 1),
+        prepProcessedRows: i
+      });
+    }
+  }
+  rows.sort((a, b) => comparePriceFileRows_(a, b, skuCol));
 
   if (!rows.length) {
     appendCatalogLog_(logSheet, productGroup, 'Generate price file', 'Skipped', 0, '', '', 'No active SKU rows found.');
@@ -4152,7 +4187,16 @@ function queueCatalogProductionJobs_(jobs, mode, counts) {
   Logger.log(`Started ${mode} production run ${state.runId} with ${jobs.length} jobs.`);
 
   scheduleCatalogProductionTrigger_(1000);
+  const seededJobs = state.jobs.slice();
+  if (seededJobs.length) {
+    seededJobs[0] = Object.assign({}, seededJobs[0], {
+      startedAt: state.startedAt,
+      progressAnchorAt: state.startedAt
+    });
+  }
   const returnState = Object.assign({}, state, {
+    jobs: seededJobs,
+    currentJobStartedAt: state.startedAt,
     runtimeStats: getCatalogProductionRuntimeStats_(workbook)
   });
   return {

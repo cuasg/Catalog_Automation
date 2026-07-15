@@ -2090,8 +2090,13 @@
           const stepIndex = Math.max(0, Number(job.priceFileStepIndex) || 0);
           const totalSteps = Math.max(0, Number(job.priceFileTotalSteps) || 0);
           const phase = String(job.priceFilePhase || '').trim();
+          const prepTotalRows = Math.max(0, Number(job.prepTotalRows) || 0);
+          const prepProcessedRows = Math.max(0, Number(job.prepProcessedRows) || 0);
           if (totalRows) {
             return processedRows + ' of ' + totalRows + ' rows' + (phase ? ' | ' + phase : '');
+          }
+          if (prepTotalRows) {
+            return prepProcessedRows + ' of ' + prepTotalRows + ' rows scanned' + (phase ? ' | ' + phase : '');
           }
           if (phase && totalSteps) {
             return phase + ' (' + Math.min(totalSteps, stepIndex) + ' of ' + totalSteps + ')';
@@ -2105,7 +2110,12 @@
           const prepStepLabel = String(job.prepStepLabel || '').trim();
           const prepStepIndex = Math.max(0, Number(job.prepStepIndex) || 0);
           const prepTotalSteps = Math.max(0, Number(job.prepTotalSteps) || 0);
+          const prepTotalRows = Math.max(0, Number(job.prepTotalRows) || 0);
+          const prepProcessedRows = Math.max(0, Number(job.prepProcessedRows) || 0);
           if (!totalGroups) {
+            if (prepTotalRows) {
+              return prepProcessedRows + ' of ' + prepTotalRows + ' rows scanned' + (prepStepLabel ? ' | ' + prepStepLabel : '');
+            }
             if (prepStepLabel && prepTotalSteps) {
               return 'Preparing pair groups: ' + prepStepLabel + ' (' + Math.min(prepTotalSteps, prepStepIndex + 1) + ' of ' + prepTotalSteps + ')';
             }
@@ -2147,6 +2157,13 @@
           if (totalRows) return (processedRows / totalRows) * 100;
           const stepIndex = Math.max(0, Number(job.priceFileStepIndex) || 0);
           const totalSteps = Math.max(0, Number(job.priceFileTotalSteps) || 0);
+          const prepTotalRows = Math.max(0, Number(job.prepTotalRows) || 0);
+          const prepProcessedRows = Math.max(0, Number(job.prepProcessedRows) || 0);
+          if (prepTotalRows) {
+            const prepBase = totalSteps ? ((Math.max(0, stepIndex - 1) / Math.max(1, totalSteps)) * 22) : 4;
+            const prepSlice = totalSteps ? (22 / Math.max(1, totalSteps)) : 18;
+            return Math.min(22, prepBase + ((prepProcessedRows / prepTotalRows) * prepSlice));
+          }
           if (totalSteps) return Math.min(22, (stepIndex / totalSteps) * 22);
           return 5;
         }
@@ -2157,6 +2174,13 @@
           if (totalGroups) return (nextGroupIndex / totalGroups) * 100;
           const prepStepIndex = Math.max(0, Number(job.prepStepIndex) || 0);
           const prepTotalSteps = Math.max(0, Number(job.prepTotalSteps) || 0);
+          const prepTotalRows = Math.max(0, Number(job.prepTotalRows) || 0);
+          const prepProcessedRows = Math.max(0, Number(job.prepProcessedRows) || 0);
+          if (prepTotalRows) {
+            const prepBase = prepTotalSteps ? ((Math.max(0, prepStepIndex - 1) / Math.max(1, prepTotalSteps)) * 18) : 4;
+            const prepSlice = prepTotalSteps ? (18 / Math.max(1, prepTotalSteps)) : 14;
+            return Math.min(18, prepBase + ((prepProcessedRows / prepTotalRows) * prepSlice));
+          }
           if (prepTotalSteps) return Math.min(18, (prepStepIndex / prepTotalSteps) * 18);
           return 5;
         }
@@ -2165,7 +2189,7 @@
       }
 
       function getJobElapsedMs(job, status) {
-        const startedAtValue = (job && job.startedAt) || (status && status.currentJobStartedAt) || '';
+        const startedAtValue = (job && job.startedAt) || (status && status.currentJobStartedAt) || (status && status.startedAt) || '';
         if (!startedAtValue) return 0;
         const startedAt = new Date(startedAtValue).getTime();
         if (!startedAt || isNaN(startedAt)) return 0;
@@ -2179,7 +2203,7 @@
 
       function getCurrentJobProgressElapsedMs(job, status) {
         if (!job) return getCurrentJobElapsedMs(status);
-        const anchor = job.progressAnchorAt || job.stageStartedAt || job.startedAt || status.currentJobStartedAt;
+        const anchor = job.progressAnchorAt || job.stageStartedAt || job.startedAt || status.currentJobStartedAt || status.startedAt;
         if (!anchor) return getCurrentJobElapsedMs(status);
         const startedAt = new Date(anchor).getTime();
         if (!startedAt || isNaN(startedAt)) return getCurrentJobElapsedMs(status);
@@ -2862,7 +2886,7 @@
                 return;
               }
 
-              statusPollTimer = setTimeout(poll, 3000);
+              statusPollTimer = setTimeout(poll, 1500);
             })
             .withFailureHandler(() => {
               statusPollTimer = setTimeout(poll, 5000);
