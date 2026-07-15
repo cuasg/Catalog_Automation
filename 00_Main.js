@@ -6166,7 +6166,7 @@ function buildPriceFileGroup_(row, col) {
 
   if (isForgedSteelCatalogProductGroup_(productGroup)) {
     const pressureClass = getForgedSteelPressureClassFromRow_(row, col);
-    const connectionType = getCatalogConnectionDisplayLabel_(row[col.Variant]);
+    const connectionType = getForgedSteelConnectionTypeFromRow_(row, col);
     const fittingType = String(row[col.Fitting_Type] || '').trim();
     return buildPriceFileSectionGroup_([pressureClass, connectionType, fittingType], productGroup || 'Products');
   }
@@ -6232,7 +6232,7 @@ function buildCatalogDescription_(row, col) {
     return [
       sizes,
       getForgedSteelPressureClassFromRow_(row, col),
-      getCatalogConnectionDisplayLabel_(row[col.Variant]),
+      getForgedSteelConnectionTypeFromRow_(row, col),
       productGroup,
       fittingType
     ].filter(Boolean).join(' ');
@@ -6269,6 +6269,11 @@ function getForgedSteelPressureClassFromRow_(row, col) {
   if (/^A82/.test(itemNumber)) return '2000LB';
   if (/^A24/.test(itemNumber)) return '3000LB';
   return '';
+}
+
+function getForgedSteelConnectionTypeFromRow_(row, col) {
+  const itemNumber = String(row[col.Item_Number] || '').trim().toUpperCase();
+  return /S$/.test(itemNumber) ? 'Socket-Weld' : 'Threaded';
 }
 
 function isForgedStainlessCatalogProductGroup_(productGroup) {
@@ -8608,6 +8613,30 @@ function comparePriceFileRows_(a, b, col) {
       parseCatalogSizeSortValue_(a[col.Size_1]) - parseCatalogSizeSortValue_(b[col.Size_1]),
       parseCatalogSizeSortValue_(a[col.Size_2]) - parseCatalogSizeSortValue_(b[col.Size_2]),
       parseCatalogSizeSortValue_(a[col.Size_3]) - parseCatalogSizeSortValue_(b[col.Size_3]),
+      sortA - sortB,
+      String(a[col.Item_Number] || '').localeCompare(String(b[col.Item_Number] || ''))
+    ].find(result => result !== 0) || 0;
+  }
+
+  if (productGroupA === productGroupB && isForgedSteelCatalogProductGroup_(productGroupA)) {
+    const pressureClassA = getForgedSteelPressureClassFromRow_(a, col);
+    const pressureClassB = getForgedSteelPressureClassFromRow_(b, col);
+    const connectionA = getForgedSteelConnectionTypeFromRow_(a, col);
+    const connectionB = getForgedSteelConnectionTypeFromRow_(b, col);
+    const sortA = Number(a[col.Sort_Order]) || 0;
+    const sortB = Number(b[col.Sort_Order]) || 0;
+    const sizePartsA = getCatalogRowSizeParts_(a, col);
+    const sizePartsB = getCatalogRowSizeParts_(b, col);
+
+    return [
+      getCatalogVariant2SortWeight_(pressureClassA) - getCatalogVariant2SortWeight_(pressureClassB),
+      getCatalogVariant2SortWeight_(connectionA) - getCatalogVariant2SortWeight_(connectionB),
+      getCatalogFittingTypeSortWeight_(productGroupA, a[col.Fitting_Type]) -
+        getCatalogFittingTypeSortWeight_(productGroupB, b[col.Fitting_Type]),
+      String(a[col.Fitting_Type] || '').localeCompare(String(b[col.Fitting_Type] || '')),
+      parseCatalogSizeSortValue_(sizePartsA[0]) - parseCatalogSizeSortValue_(sizePartsB[0]),
+      parseCatalogSizeSortValue_(sizePartsA[1]) - parseCatalogSizeSortValue_(sizePartsB[1]),
+      parseCatalogSizeSortValue_(sizePartsA[2]) - parseCatalogSizeSortValue_(sizePartsB[2]),
       sortA - sortB,
       String(a[col.Item_Number] || '').localeCompare(String(b[col.Item_Number] || ''))
     ].find(result => result !== 0) || 0;
