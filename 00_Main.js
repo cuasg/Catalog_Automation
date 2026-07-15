@@ -4151,12 +4151,15 @@ function queueCatalogProductionJobs_(jobs, mode, counts) {
   Logger.log(`Started ${mode} production run ${state.runId} with ${jobs.length} jobs.`);
 
   scheduleCatalogProductionTrigger_(1000);
+  const returnState = Object.assign({}, state, {
+    runtimeStats: getCatalogProductionRuntimeStats_(ss)
+  });
   return {
     ok: true,
     message:
       `Queued ${jobs.length} job${jobs.length === 1 ? '' : 's'} for ${mode}. ` +
       'The run now continues on Google infrastructure, so it is safe to close the dialog, browser, or local machine after queue confirmation.',
-    status: state
+    status: returnState
   };
 }
 

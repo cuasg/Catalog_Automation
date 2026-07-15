@@ -936,6 +936,12 @@
         operation: { displayedPercent: 0, targetPercent: 0, targetText: 'Current Operation: Idle', targetDetail: '0%' },
         run: { displayedPercent: 0, targetPercent: 0, targetText: 'Production Run: Idle', targetDetail: '0%' }
       };
+      let estimateState = {
+        runId: '',
+        runBaselineTotalMs: 0,
+        jobKey: '',
+        jobBaselineTotalMs: 0
+      };
       let activeTab = normalizeTabName(initialTab);
       let editingRuleRowNumber = null;
       let selectedCatalogGroups = {};
@@ -1860,6 +1866,12 @@
         if (action === 'cancelProduction') {
           stopStatusPolling();
         }
+        estimateState = {
+          runId: '',
+          runBaselineTotalMs: 0,
+          jobKey: '',
+          jobBaselineTotalMs: 0
+        };
         progressState.operation.displayedPercent = 0;
         progressState.run.displayedPercent = 0;
         setProgressTarget('operation', 0, 'Current Operation: ' + getBusyMessage(action, productGroup), 'Starting', true);
@@ -1875,6 +1887,7 @@
 
             let message = (result && result.message) || 'Done.';
             if (result && result.status) {
+              refreshProgressFromStatus(result.status);
               message += '\n\n' + formatProductionStatus(result.status);
               if (isProductionStatusActive(result.status)) {
                 startStatusPolling();
@@ -1933,6 +1946,12 @@
 
         setBusy(true);
         setStatus('Queueing selected catalog PDFs...', 'busy');
+        estimateState = {
+          runId: '',
+          runBaselineTotalMs: 0,
+          jobKey: '',
+          jobBaselineTotalMs: 0
+        };
         progressState.operation.displayedPercent = 0;
         progressState.run.displayedPercent = 0;
         setProgressTarget('operation', 0, 'Current Operation: Queueing selected catalog PDFs...', 'Starting', true);
@@ -1944,6 +1963,7 @@
             workflowData.productionStatus = result && result.status !== undefined ? result.status : workflowData.productionStatus;
             let message = (result && result.message) || 'Selected catalog run queued.';
             if (result && result.status) {
+              refreshProgressFromStatus(result.status);
               message += '\n\n' + formatProductionStatus(result.status);
               startStatusPolling();
             }
@@ -1971,6 +1991,12 @@
 
         setBusy(true);
         setStatus('Queueing selected price lists...', 'busy');
+        estimateState = {
+          runId: '',
+          runBaselineTotalMs: 0,
+          jobKey: '',
+          jobBaselineTotalMs: 0
+        };
         progressState.operation.displayedPercent = 0;
         progressState.run.displayedPercent = 0;
         setProgressTarget('operation', 0, 'Current Operation: Queueing selected price lists...', 'Starting', true);
@@ -1982,6 +2008,7 @@
             workflowData.productionStatus = result && result.status !== undefined ? result.status : workflowData.productionStatus;
             let message = (result && result.message) || 'Selected price-list run queued.';
             if (result && result.status) {
+              refreshProgressFromStatus(result.status);
               message += '\n\n' + formatProductionStatus(result.status);
               startStatusPolling();
             }
@@ -2181,6 +2208,15 @@
         return status && status.runtimeStats ? status.runtimeStats : {};
       }
 
+      function getJobKey(job) {
+        if (!job) return '';
+        return [
+          String(job.type || '').trim(),
+          String(job.productGroup || '').trim(),
+          String(job.fileName || '').trim()
+        ].join('|');
+      }
+
       function getCompletedRunJobDurations(status) {
         if (!status || !status.jobs || !status.jobs.length) return [];
         return status.jobs
@@ -2232,6 +2268,98 @@
         if (runTypeAverage) return runTypeAverage;
 
         return getCurrentRunAverageDurationMs(status);
+      }
+
+      function getBaselineJobExpectedMs(job, status) {
+        if (!job) return 0;
+        if (job.type === 'catalog_pdf') {
+          const timing = getCatalogTimingModel(Object.assign({}, job, {
+            nextPageIndex: 0,
+            progressPageIndex: 0
+          }), Object.assign({}, status || {}));
+          return Math.max(0, Number(timing.totalMs) || 0);
+        }
+        if (Number(job.durationMs) > 0) return Number(job.durationMs) || 0;
+        return Math.max(0, Number(getHistoricalJobDurationMs(job, status)) || 0);
+      }
+
+      function getProjectedJobTotalMs(job, status) {
+        if (!job) return 0;
+        const percent = Math.max(0, Math.min(0.995, getLiveJobPercent(job, status) / 100));
+        const elapsedMs = getJobElapsedMs(job, status);
+        if (!percent || !elapsedMs) return 0;
+        return Math.max(elapsedMs, Math.round(elapsedMs / Math.max(percent, 0.02)));
+      }
+
+      function getInitialRunBaselineTotalMs(status) {
+        const jobs = (status && status.jobs) || [];
+        let totalMs = 0;
+        jobs.forEach(job => {
+          totalMs += getBaselineJobExpectedMs(job, status);
+        });
+        return Math.max(0, Math.round(totalMs));
+      }
+
+      function getCompletedActualDurationMs(status) {
+        const jobs = (status && status.jobs) || [];
+        const nextJobIndex = Number(status && status.nextJobIndex) || 0;
+        let totalMs = 0;
+        jobs.forEach((job, index) => {
+          if (index >= nextJobIndex) return;
+          totalMs += Number(job && job.durationMs) || 0;
+        });
+        return Math.max(0, Math.round(totalMs));
+      }
+
+      function ensureEstimateState(status) {
+        if (!isProductionStatusActive(status)) {
+          estimateState = {
+            runId: '',
+            runBaselineTotalMs: 0,
+            jobKey: '',
+            jobBaselineTotalMs: 0
+          };
+          return;
+        }
+
+        const runId = String(status.runId || '');
+        const nextJob = status.jobs && status.jobs[status.nextJobIndex] ? status.jobs[status.nextJobIndex] : null;
+        const nextJobKey = getJobKey(nextJob);
+
+        if (estimateState.runId !== runId) {
+          estimateState.runId = runId;
+          estimateState.runBaselineTotalMs = getInitialRunBaselineTotalMs(status);
+          estimateState.jobKey = '';
+          estimateState.jobBaselineTotalMs = 0;
+        }
+
+        if (estimateState.jobKey !== nextJobKey) {
+          estimateState.jobKey = nextJobKey;
+          estimateState.jobBaselineTotalMs = getBaselineJobExpectedMs(nextJob, status);
+        }
+
+        const currentJobElapsedMs = getCurrentJobElapsedMs(status);
+        if (currentJobElapsedMs > estimateState.jobBaselineTotalMs) {
+          estimateState.jobBaselineTotalMs = Math.round(currentJobElapsedMs * 1.08);
+        } else {
+          const projectedJobTotalMs = getProjectedJobTotalMs(nextJob, status);
+          if (projectedJobTotalMs > estimateState.jobBaselineTotalMs * 1.12) {
+            const liftedJobTotalMs = Math.min(
+              projectedJobTotalMs,
+              Math.max(
+                Math.round(estimateState.jobBaselineTotalMs * 1.08),
+                Math.round(currentJobElapsedMs * 1.08)
+              )
+            );
+            estimateState.jobBaselineTotalMs = Math.max(estimateState.jobBaselineTotalMs, liftedJobTotalMs);
+          }
+        }
+
+        const queuedJobs = (status.jobs || []).slice((Number(status.nextJobIndex) || 0) + 1);
+        const queuedBaselineMs = queuedJobs.reduce((sum, job) => sum + getBaselineJobExpectedMs(job, status), 0);
+        const completedActualMs = getCompletedActualDurationMs(status);
+        const runFloorMs = completedActualMs + estimateState.jobBaselineTotalMs + queuedBaselineMs;
+        estimateState.runBaselineTotalMs = Math.max(estimateState.runBaselineTotalMs, runFloorMs, getRunElapsedMs(status));
       }
 
       function clampNumber(value, min, max) {
@@ -2406,25 +2534,13 @@
 
       function getCurrentJobEstimatedTotalMs(status) {
         if (!isProductionStatusActive(status)) return 0;
+        ensureEstimateState(status);
 
         const nextJob = status && status.jobs && status.jobs[status.nextJobIndex] ? status.jobs[status.nextJobIndex] : null;
         if (!nextJob) return 0;
 
-        if (nextJob.type === 'catalog_pdf') {
-          const timing = getCatalogTimingModel(nextJob, status);
-          const elapsedMs = getCurrentJobElapsedMs(status);
-          return Math.max(elapsedMs, timing.totalMs);
-        }
-
-        const historicalMs = getHistoricalJobDurationMs(nextJob, status);
         const elapsedMs = getCurrentJobElapsedMs(status);
-        const percent = Math.max(0, Math.min(0.995, getLiveJobPercent(nextJob, status) / 100));
-
-        if (!percent) return historicalMs;
-
-        const projectedMs = elapsedMs > 0 ? (elapsedMs / Math.max(percent, 0.02)) : 0;
-        const estimatedTotalMs = blendEstimateMs(historicalMs, projectedMs, percent);
-        return Math.max(elapsedMs, estimatedTotalMs);
+        return Math.max(elapsedMs, estimateState.jobBaselineTotalMs || getBaselineJobExpectedMs(nextJob, status));
       }
 
       function getCurrentJobRemainingMs(status) {
@@ -2441,19 +2557,13 @@
 
       function getEstimatedRemainingMs(status) {
         if (!isProductionStatusActive(status)) return 0;
+        ensureEstimateState(status);
 
         const totalJobs = Number(status && status.totalJobs) || 0;
         const nextJob = status && status.jobs && status.jobs[status.nextJobIndex] ? status.jobs[status.nextJobIndex] : null;
         if (!totalJobs || !nextJob) return 0;
 
-        let remainingMs = getCurrentJobRemainingMs(status);
-
-        const queuedJobs = (status.jobs || []).slice((Number(status.nextJobIndex) || 0) + 1);
-        queuedJobs.forEach(job => {
-          remainingMs += getJobExpectedTotalMs(job, status) || getHistoricalJobDurationMs(job, status);
-        });
-
-        return Math.max(0, Math.round(remainingMs));
+        return Math.max(0, Math.round(estimateState.runBaselineTotalMs - getRunElapsedMs(status)));
       }
 
       function getEstimatedTotalLabel(status) {
@@ -2670,6 +2780,7 @@
 
       function refreshProgressFromStatus(status) {
         latestProductionStatus = status || null;
+        ensureEstimateState(latestProductionStatus);
         const operationModel = buildOperationProgressModel(latestProductionStatus);
         const runModel = buildRunProgressModel(latestProductionStatus);
         const force = !latestProductionStatus || runModel.percent === 100;
