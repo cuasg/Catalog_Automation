@@ -4967,7 +4967,7 @@ function getCatalogSectionLayoutOverride_(section, titleText) {
     {
       productGroup: 'valves',
       fittingType: 'y-strainer',
-      variant2: 'bronze - threaded',
+      variant2: 'cast bronze - threaded',
       specTitleClearance: 2.8
     },
     {
@@ -4979,13 +4979,13 @@ function getCatalogSectionLayoutOverride_(section, titleText) {
     {
       productGroup: 'valves',
       fittingType: 'hose stop',
-      variant2: 'stainless - fpt',
+      variant2: 'cast brass - fpt',
       specTitleClearance: 2.8
     },
     {
       productGroup: 'valves',
       fittingType: 'hose stop',
-      variant2: 'stainless - mpt',
+      variant2: 'cast brass - mpt',
       specTitleClearance: 2.8
     },
     {
@@ -6292,13 +6292,15 @@ function getValveMaterialFamily_(row, col) {
   ].map(value => String(value || '').trim()).filter(Boolean).join(' ');
   const normalized = raw.toLowerCase();
 
-  if (normalized.indexOf('stainless') !== -1 || normalized.indexOf('304') !== -1 || normalized.indexOf('316') !== -1 || normalized.indexOf('ss') !== -1) {
+  if (normalized.indexOf('stainless') !== -1 || /(^|[^a-z0-9])(?:304(?:ss)?|316(?:ss)?|ss)([^a-z0-9]|$)/i.test(raw)) {
     return 'Stainless';
   }
   if (normalized.indexOf('lead free bronze') !== -1 || normalized.indexOf('lf bronze') !== -1 || normalized.indexOf('lead free') !== -1) {
     return 'Lead Free Bronze';
   }
   if (normalized.indexOf('carbon steel') !== -1) return 'Carbon Steel';
+  if (normalized.indexOf('cast bronze') !== -1) return 'Cast Bronze';
+  if (normalized.indexOf('cast brass') !== -1) return 'Cast Brass';
   if (normalized.indexOf('bronze') !== -1) return 'Bronze';
   if (normalized.indexOf('brass') !== -1) return 'Brass';
 
@@ -6336,8 +6338,10 @@ function getValveConnectionType_(row, col) {
 function getValveMaterialSortWeight_(materialFamily) {
   const normalized = String(materialFamily || '').toLowerCase();
   if (normalized === 'brass') return 10;
+  if (normalized === 'cast brass') return 12;
   if (normalized === 'forged brass') return 15;
   if (normalized === 'bronze') return 20;
+  if (normalized === 'cast bronze') return 22;
   if (normalized === 'lead free bronze') return 30;
   if (normalized === 'carbon steel') return 40;
   if (normalized === 'stainless') return 50;

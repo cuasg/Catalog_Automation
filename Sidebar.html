@@ -975,12 +975,29 @@
       let lastProgressAnimationAt = 0;
       let latestProductionStatus = null;
       let progressState = {
-        operation: { displayedPercent: 0, targetPercent: 0, floorPercent: 0, token: '', targetText: 'Current Operation: Idle', targetDetail: '0%' },
-        run: { displayedPercent: 0, targetPercent: 0, floorPercent: 0, token: '', targetText: 'Production Run: Idle', targetDetail: '0%' }
+        operation: {
+          displayedPercent: 0,
+          targetPercent: 0,
+          floorPercent: 0,
+          token: '',
+          targetText: 'Current Operation: Idle',
+          targetDetail: '0%',
+          targetModel: null
+        },
+        run: {
+          displayedPercent: 0,
+          targetPercent: 0,
+          floorPercent: 0,
+          token: '',
+          targetText: 'Production Run: Idle',
+          targetDetail: '0%',
+          targetModel: null
+        }
       };
       let estimateState = {
         runId: '',
         runBaselineTotalMs: 0,
+        runDisplayEstimateMs: 0,
         jobKey: '',
         jobBaselineTotalMs: 0,
         jobDisplayEstimateMs: 0
@@ -1018,7 +1035,7 @@
 
       function setProgressTarget(key, percent, text, detail, force, token) {
         const state = progressState[key];
-        const nextToken = String(token || '');
+        const nextToken = token === undefined || token === null ? state.token : String(token);
         if (state.token !== nextToken) {
           state.token = nextToken;
           state.floorPercent = 0;
@@ -2005,14 +2022,17 @@
         estimateState = {
           runId: '',
           runBaselineTotalMs: 0,
+          runDisplayEstimateMs: 0,
           jobKey: '',
           jobBaselineTotalMs: 0,
           jobDisplayEstimateMs: 0
         };
         progressState.operation.floorPercent = 0;
         progressState.operation.token = '';
+        progressState.operation.targetModel = null;
         progressState.run.floorPercent = 0;
         progressState.run.token = '';
+        progressState.run.targetModel = null;
         progressState.operation.displayedPercent = 0;
         progressState.run.displayedPercent = 0;
         setProgressTarget('operation', 0, 'Current Operation: ' + getBusyMessage(action, productGroup), 'Starting', true);
@@ -2090,14 +2110,17 @@
         estimateState = {
           runId: '',
           runBaselineTotalMs: 0,
+          runDisplayEstimateMs: 0,
           jobKey: '',
           jobBaselineTotalMs: 0,
           jobDisplayEstimateMs: 0
         };
         progressState.operation.floorPercent = 0;
         progressState.operation.token = '';
+        progressState.operation.targetModel = null;
         progressState.run.floorPercent = 0;
         progressState.run.token = '';
+        progressState.run.targetModel = null;
         progressState.operation.displayedPercent = 0;
         progressState.run.displayedPercent = 0;
         setProgressTarget('operation', 0, 'Current Operation: Queueing selected catalog PDFs...', 'Starting', true);
@@ -2140,14 +2163,17 @@
         estimateState = {
           runId: '',
           runBaselineTotalMs: 0,
+          runDisplayEstimateMs: 0,
           jobKey: '',
           jobBaselineTotalMs: 0,
           jobDisplayEstimateMs: 0
         };
         progressState.operation.floorPercent = 0;
         progressState.operation.token = '';
+        progressState.operation.targetModel = null;
         progressState.run.floorPercent = 0;
         progressState.run.token = '';
+        progressState.run.targetModel = null;
         progressState.operation.displayedPercent = 0;
         progressState.run.displayedPercent = 0;
         setProgressTarget('operation', 0, 'Current Operation: Queueing selected price lists...', 'Starting', true);
@@ -2492,6 +2518,7 @@
           estimateState = {
             runId: '',
             runBaselineTotalMs: 0,
+            runDisplayEstimateMs: 0,
             jobKey: '',
             jobBaselineTotalMs: 0,
             jobDisplayEstimateMs: 0
@@ -2506,6 +2533,7 @@
         if (estimateState.runId !== runId) {
           estimateState.runId = runId;
           estimateState.runBaselineTotalMs = getInitialRunBaselineTotalMs(status);
+          estimateState.runDisplayEstimateMs = estimateState.runBaselineTotalMs;
           estimateState.jobKey = '';
           estimateState.jobBaselineTotalMs = 0;
           estimateState.jobDisplayEstimateMs = 0;
@@ -2557,8 +2585,32 @@
         const queuedJobs = (status.jobs || []).slice((Number(status.nextJobIndex) || 0) + 1);
         const queuedBaselineMs = queuedJobs.reduce((sum, job) => sum + getBaselineJobExpectedMs(job, status), 0);
         const completedActualMs = getCompletedActualDurationMs(status);
-        const runFloorMs = completedActualMs + Math.max(estimateState.jobBaselineTotalMs, estimateState.jobDisplayEstimateMs || 0) + queuedBaselineMs;
-        estimateState.runBaselineTotalMs = Math.max(estimateState.runBaselineTotalMs, runFloorMs, getRunElapsedMs(status));
+        const runElapsedMs = getRunElapsedMs(status);
+        const runTargetEstimateMs = completedActualMs +
+          Math.max(estimateState.jobBaselineTotalMs, estimateState.jobDisplayEstimateMs || 0) +
+          queuedBaselineMs;
+        const runFloorMs = Math.max(estimateState.runBaselineTotalMs, runTargetEstimateMs, runElapsedMs);
+        estimateState.runBaselineTotalMs = Math.max(estimateState.runBaselineTotalMs, runFloorMs);
+
+        if (!estimateState.runDisplayEstimateMs) {
+          estimateState.runDisplayEstimateMs = runFloorMs;
+        }
+
+        const currentRunDisplayEstimateMs = Math.max(runElapsedMs, Number(estimateState.runDisplayEstimateMs) || 0);
+        if (runFloorMs > currentRunDisplayEstimateMs) {
+          estimateState.runDisplayEstimateMs = Math.round(
+            currentRunDisplayEstimateMs + ((runFloorMs - currentRunDisplayEstimateMs) * 0.22)
+          );
+        } else {
+          estimateState.runDisplayEstimateMs = Math.round(
+            currentRunDisplayEstimateMs - ((currentRunDisplayEstimateMs - runFloorMs) * 0.08)
+          );
+        }
+
+        estimateState.runDisplayEstimateMs = Math.max(
+          Math.round(runElapsedMs * 1.01),
+          estimateState.runDisplayEstimateMs || 0
+        );
       }
 
       function clampNumber(value, min, max) {
@@ -2767,7 +2819,13 @@
         const nextJob = status && status.jobs && status.jobs[status.nextJobIndex] ? status.jobs[status.nextJobIndex] : null;
         if (!totalJobs || !nextJob) return 0;
 
-        return Math.max(0, Math.round(estimateState.runBaselineTotalMs - getRunElapsedMs(status)));
+        const runElapsedMs = getRunElapsedMs(status);
+        const estimatedTotalMs = Math.max(
+          runElapsedMs,
+          Number(estimateState.runDisplayEstimateMs) || 0,
+          Number(estimateState.runBaselineTotalMs) || 0
+        );
+        return Math.max(0, Math.round(estimatedTotalMs - runElapsedMs));
       }
 
       function getEstimatedTotalLabel(status) {
@@ -2961,11 +3019,14 @@
             text: 'Current Operation: ' + getJobLabel(nextJob),
             detail: (detail ? detail : (Math.round(operationPercent) + '%')) +
               (elapsedMs ? ' | Elapsed ' + formatDurationShort(elapsedMs) : '') +
-              (estimatedTotalMs ? ' | Estimated Total ' + formatDurationShort(estimatedTotalMs) : '')
+              (estimatedTotalMs ? ' | Estimated Total ' + formatDurationShort(estimatedTotalMs) : ''),
+            detailPrefix: detail ? detail : (Math.round(operationPercent) + '%'),
+            estimatedTotalMs: estimatedTotalMs,
+            dynamicDetail: true
           };
         }
 
-        return { percent: 100, text: 'Current Operation: Complete', detail: '100%' };
+        return { percent: 100, text: 'Current Operation: Complete', detail: '100%', dynamicDetail: false };
       }
 
       function buildRunProgressModel(status) {
@@ -2982,20 +3043,46 @@
           const overallPercent = totalJobs ? getRunPercent(status) : getLiveJobPercent(nextJob, status);
           const elapsedMs = getRunElapsedMs(status);
           const estimatedTotalMs = Math.max(0, elapsedMs + getEstimatedRemainingMs(status));
+          const detailPrefix = completed + ' of ' + totalJobs + ' jobs complete';
           return {
             percent: overallPercent,
             text: 'Production Run: ' + completed + ' of ' + totalJobs + ' jobs complete',
-            detail: (completed + ' of ' + totalJobs + ' jobs complete') +
+            detail: detailPrefix +
               (elapsedMs ? ' | Elapsed ' + formatDurationShort(elapsedMs) : '') +
-              (estimatedTotalMs ? ' | Estimated Total ' + formatDurationShort(estimatedTotalMs) : '')
+              (estimatedTotalMs ? ' | Estimated Total ' + formatDurationShort(estimatedTotalMs) : ''),
+            detailPrefix: detailPrefix,
+            estimatedTotalMs: estimatedTotalMs,
+            dynamicDetail: true
           };
         }
 
         return {
           percent: 100,
           text: 'Production Run: Complete',
-          detail: totalJobs ? (completed + ' of ' + totalJobs + ' complete') : '100%'
+          detail: totalJobs ? (completed + ' of ' + totalJobs + ' complete') : '100%',
+          dynamicDetail: false
         };
+      }
+
+      function buildAnimatedProgressDetail(key, status) {
+        const state = progressState[key];
+        const model = state && state.targetModel;
+        if (!model) return state && state.targetDetail ? state.targetDetail : '0%';
+        if (!model.dynamicDetail || !isProductionStatusActive(status)) {
+          return model.detail || state.targetDetail || '0%';
+        }
+
+        if (key === 'operation') {
+          const elapsedMs = getCurrentJobElapsedMs(status);
+          return (model.detailPrefix || Math.round(state.targetPercent) + '%') +
+            (elapsedMs ? ' | Elapsed ' + formatDurationShort(elapsedMs) : '') +
+            (model.estimatedTotalMs ? ' | Estimated Total ' + formatDurationShort(model.estimatedTotalMs) : '');
+        }
+
+        const elapsedMs = getRunElapsedMs(status);
+        return (model.detailPrefix || '') +
+          (elapsedMs ? ' | Elapsed ' + formatDurationShort(elapsedMs) : '') +
+          (model.estimatedTotalMs ? ' | Estimated Total ' + formatDurationShort(model.estimatedTotalMs) : '');
       }
 
       function refreshProgressFromStatus(status) {
@@ -3009,6 +3096,8 @@
           : null;
         const operationToken = nextJob ? getJobKey(nextJob) : '';
         const runToken = latestProductionStatus && latestProductionStatus.runId ? String(latestProductionStatus.runId) : '';
+        progressState.operation.targetModel = operationModel;
+        progressState.run.targetModel = runModel;
         setProgressTarget('operation', operationModel.percent, operationModel.text, operationModel.detail, force, operationToken);
         setProgressTarget('run', runModel.percent, runModel.text, runModel.detail, force, runToken);
       }
@@ -3036,10 +3125,6 @@
         stopProgressAnimation();
         lastProgressAnimationAt = Date.now();
         progressAnimationTimer = setInterval(() => {
-          const operationModel = buildOperationProgressModel(latestProductionStatus);
-          const runModel = buildRunProgressModel(latestProductionStatus);
-          setProgressTarget('operation', operationModel.percent, operationModel.text, operationModel.detail, false);
-          setProgressTarget('run', runModel.percent, runModel.text, runModel.detail, false);
           const now = Date.now();
           const deltaMs = Math.max(16, now - lastProgressAnimationAt);
           lastProgressAnimationAt = now;
@@ -3057,12 +3142,9 @@
               state.displayedPercent = Math.min(state.targetPercent, state.displayedPercent + step);
             }
 
-            renderProgressBar(key, state.displayedPercent, state.targetText, state.targetDetail);
+            renderProgressBar(key, state.displayedPercent, state.targetText, buildAnimatedProgressDetail(key, latestProductionStatus));
           });
 
-          if (active) {
-            setStatus(formatProductionStatus(latestProductionStatus), 'busy');
-          }
         }, 100);
       }
 
