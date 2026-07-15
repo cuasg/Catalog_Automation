@@ -875,6 +875,46 @@
 
       <div id="maintenance" class="panel">
         <div class="section">
+          <h2>Catalog Metadata</h2>
+          <p>Update `Catalog_Code`, `Version_Code`, and `Effective_Date` on `Catalog_Groups` by product group or PLC.</p>
+          <div class="form-grid">
+            <div class="field">
+              <label for="metadataScope">Scope</label>
+              <select id="metadataScope" title="Choose whether to update catalog metadata by product group or PLC.">
+                <option value="group" selected>Product Group</option>
+                <option value="plc">PLC</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="metadataTarget">Target</label>
+              <select id="metadataTarget" title="Choose the product group or PLC to update."></select>
+            </div>
+
+            <div class="field">
+              <label for="metadataCatalogCode">Catalog Code</label>
+              <input id="metadataCatalogCode" type="text" placeholder="Example: MI">
+            </div>
+
+            <div class="field">
+              <label for="metadataVersionCode">Version Code</label>
+              <input id="metadataVersionCode" type="text" placeholder="Example: 0726">
+            </div>
+
+            <div class="field">
+              <label for="metadataEffectiveDate">Effective Date</label>
+              <input id="metadataEffectiveDate" type="text" placeholder="Example: July 2026">
+            </div>
+
+            <div class="hint" id="metadataCurrentValues">Select a target to view current values.</div>
+
+            <div class="stack">
+              <button id="saveCatalogMetadataButton" class="button" title="Saves the catalog metadata to matching Catalog_Groups rows.">Save Catalog Metadata</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
           <h2>Maintenance Tools</h2>
           <p>Use these maintenance and recovery tools to normalize source data, monitor production, and rerun failures when needed.</p>
           <div class="stack">
@@ -1480,6 +1520,90 @@
               (entry.message ? '<div>' + escapeHtml(entry.message) + '</div>' : '') +
             '</div>';
         }).join('');
+      }
+
+      function getMetadataEntriesForScope(scope) {
+        const options = workflowData.catalogMetadataOptions || { groups: [], plcs: [] };
+        return scope === 'plc' ? (options.plcs || []) : (options.groups || []);
+      }
+
+      function renderCatalogMetadataEditor() {
+        const scopeNode = document.getElementById('metadataScope');
+        const targetNode = document.getElementById('metadataTarget');
+        if (!scopeNode || !targetNode) return;
+
+        const scope = scopeNode.value || 'group';
+        const entries = getMetadataEntriesForScope(scope);
+        const previousValue = targetNode.value;
+
+        targetNode.innerHTML = '<option value="">' + (scope === 'plc' ? 'Select PLC' : 'Select Product Group') + '</option>' +
+          entries.map(entry => {
+            const value = scope === 'plc' ? entry.plc : entry.productGroup;
+            const label = scope === 'plc' ? formatPlcLabel(entry.plc) : entry.productGroup;
+            return '<option value="' + escapeHtml(value) + '">' + escapeHtml(label) + '</option>';
+          }).join('');
+
+        setSelectValueIfPresent('metadataTarget', previousValue);
+        updateCatalogMetadataPreview();
+      }
+
+      function updateCatalogMetadataPreview() {
+        const scopeNode = document.getElementById('metadataScope');
+        const targetNode = document.getElementById('metadataTarget');
+        const previewNode = document.getElementById('metadataCurrentValues');
+        if (!scopeNode || !targetNode || !previewNode) return;
+
+        const scope = scopeNode.value || 'group';
+        const targetValue = targetNode.value || '';
+        const entries = getMetadataEntriesForScope(scope);
+        const entry = entries.find(item => (scope === 'plc' ? item.plc : item.productGroup) === targetValue) || null;
+
+        if (!entry) {
+          previewNode.textContent = 'Select a target to view current values.';
+          return;
+        }
+
+        document.getElementById('metadataCatalogCode').value = entry.catalogCode || '';
+        document.getElementById('metadataVersionCode').value = entry.versionCode || '';
+        document.getElementById('metadataEffectiveDate').value = entry.effectiveDate || '';
+        previewNode.textContent =
+          'Current values: Catalog Code ' + (entry.catalogCode || '(blank)') +
+          ' | Version Code ' + (entry.versionCode || '(blank)') +
+          ' | Effective Date ' + (entry.effectiveDate || '(blank)');
+      }
+
+      function saveCatalogMetadata() {
+        const scope = document.getElementById('metadataScope').value;
+        const targetValue = document.getElementById('metadataTarget').value;
+        const catalogCode = document.getElementById('metadataCatalogCode').value;
+        const versionCode = document.getElementById('metadataVersionCode').value;
+        const effectiveDate = document.getElementById('metadataEffectiveDate').value;
+
+        if (!targetValue) {
+          setStatus(scope === 'plc' ? 'Select a PLC first.' : 'Select a product group first.', 'error');
+          return;
+        }
+
+        setBusy(true);
+        setStatus('Saving catalog metadata...', 'busy');
+
+        google.script.run
+          .withSuccessHandler(result => {
+            setBusy(false);
+            setStatus((result && result.message) || 'Catalog metadata updated.', 'success');
+            refreshData();
+          })
+          .withFailureHandler(error => {
+            setBusy(false);
+            setStatus(error && error.message ? error.message : String(error), 'error');
+          })
+          .saveCatalogMetadataFromSidebar({
+            scope: scope,
+            targetValue: targetValue,
+            catalogCode: catalogCode,
+            versionCode: versionCode,
+            effectiveDate: effectiveDate
+          });
       }
 
       function renderRuleInputOptions(selectedVariants, selectedVariant2s) {
@@ -2985,6 +3109,7 @@
             workflowData = data;
             switchTab(activeTab);
             renderGroups();
+            renderCatalogMetadataEditor();
             refreshProgressFromStatus(workflowData.productionStatus);
             const statusText = workflowData.productionStatus
               ? formatProductionStatus(workflowData.productionStatus)
@@ -3090,6 +3215,11 @@
 
         if (event.target.id === 'clearSelectedPriceListsButton' && !busy) {
           clearSelectedPriceLists();
+          return;
+        }
+
+        if (event.target.id === 'saveCatalogMetadataButton' && !busy) {
+          saveCatalogMetadata();
         }
       });
 
@@ -3118,6 +3248,16 @@
 
         if (event.target.id === 'ruleDisplayGroup' || event.target.id === 'ruleSearch' || event.target.id === 'ruleStatusFilter') {
           renderPriceRules();
+          return;
+        }
+
+        if (event.target.id === 'metadataScope') {
+          renderCatalogMetadataEditor();
+          return;
+        }
+
+        if (event.target.id === 'metadataTarget') {
+          updateCatalogMetadataPreview();
         }
       });
 

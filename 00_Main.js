@@ -1190,9 +1190,60 @@ function getMsiAutomationSidebarData() {
     preflight: getMsiAutomationPreflightData_(ss),
     priceRules: getPriceRulesForSidebar_(ss),
     priceRuleOptions: getPriceRuleOptionsForSidebar_(ss),
+    catalogMetadataOptions: getCatalogMetadataOptionsForSidebar_(ss),
     ruleHistory: getRecentPriceRuleHistoryForSidebar_(ss),
     productionMode: getProductionModeState_(),
     productionStatus: getCatalogProductionRunState_() || null
+  };
+}
+
+function getCatalogMetadataOptionsForSidebar_(ss) {
+  const workbook = ss || getCatalogWorkbook_();
+  const sheet = workbook.getSheetByName('Catalog_Groups');
+  if (!sheet) return { groups: [], plcs: [] };
+
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) return { groups: [], plcs: [] };
+
+  const col = headerMap_(values[0]);
+  const groups = [];
+  const groupSeen = {};
+  const plcSeen = {};
+
+  values.slice(1).forEach(row => {
+    const productGroup = String(row[col.Product_Group] || '').trim();
+    const plcRaw = String(getOptionalCellValue_(row, col, 'PLC') || '').trim();
+    const catalogCode = String(getOptionalCellValue_(row, col, 'Catalog_Code') || '').trim();
+    const versionCode = String(getOptionalCellValue_(row, col, 'Version_Code') || '').trim();
+    const effectiveDate = String(getOptionalCellValue_(row, col, 'Effective_Date') || '').trim();
+
+    if (productGroup && !groupSeen[productGroup]) {
+      groupSeen[productGroup] = true;
+      groups.push({
+        productGroup,
+        catalogCode,
+        versionCode,
+        effectiveDate
+      });
+    }
+
+    plcRaw.split(',').map(value => normalizeMatchValue_(value)).filter(Boolean).forEach(plc => {
+      if (!plcSeen[plc]) {
+        plcSeen[plc] = {
+          plc,
+          catalogCode,
+          versionCode,
+          effectiveDate
+        };
+      }
+    });
+  });
+
+  return {
+    groups: groups.sort((a, b) => a.productGroup.localeCompare(b.productGroup)),
+    plcs: Object.keys(plcSeen)
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+      .map(plc => plcSeen[plc])
   };
 }
 
@@ -2632,6 +2683,9 @@ function runMsiAutomationAction(action, productGroup) {
     case 'repairCartons':
       return repairCatalogInnerMasterCartonCounts();
 
+    case 'saveCatalogMetadata':
+      throw new Error('Use saveCatalogMetadataFromSidebar() for catalog metadata updates.');
+
     case 'runPreflight':
       return {
         ok: true,
@@ -2701,6 +2755,72 @@ function queueSelectedPriceListGroupsFromSidebar(productGroups) {
     requireActive: false,
     mode: `${selectedGroups.length} selected price-list group${selectedGroups.length === 1 ? '' : 's'} creation`
   });
+}
+
+function saveCatalogMetadataFromSidebar(input) {
+  const payload = input || {};
+  const scope = String(payload.scope || '').trim().toLowerCase();
+  const targetValue = String(payload.targetValue || '').trim();
+  const catalogCode = String(payload.catalogCode || '').trim();
+  const versionCode = String(payload.versionCode || '').trim();
+  const effectiveDate = String(payload.effectiveDate || '').trim();
+  const ss = getCatalogWorkbook_();
+  const sheet = ss.getSheetByName('Catalog_Groups');
+  const logSheet = ss.getSheetByName('Generation_Log');
+  if (!sheet) throw new Error('Missing Catalog_Groups sheet.');
+  if (scope !== 'group' && scope !== 'plc') throw new Error('Metadata scope must be Product Group or PLC.');
+  if (!targetValue) throw new Error(scope === 'plc' ? 'Select a PLC.' : 'Select a product group.');
+
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) throw new Error('Catalog_Groups sheet is missing data rows.');
+  const col = headerMap_(values[0]);
+
+  const matchedRowNumbers = [];
+  values.slice(1).forEach((row, index) => {
+    const productGroup = String(row[col.Product_Group] || '').trim();
+    const plcTokens = String(getOptionalCellValue_(row, col, 'PLC') || '')
+      .split(',')
+      .map(value => normalizeMatchValue_(value))
+      .filter(Boolean);
+
+    const isMatch = scope === 'plc'
+      ? plcTokens.indexOf(normalizeMatchValue_(targetValue)) !== -1
+      : productGroup === targetValue;
+
+    if (!isMatch) return;
+    matchedRowNumbers.push(index + 2);
+  });
+
+  if (!matchedRowNumbers.length) {
+    throw new Error(scope === 'plc'
+      ? `No Catalog_Groups rows matched PLC ${targetValue}.`
+      : `No Catalog_Groups rows matched product group ${targetValue}.`);
+  }
+
+  matchedRowNumbers.forEach(rowNumber => {
+    if (col.Catalog_Code !== undefined) sheet.getRange(rowNumber, col.Catalog_Code + 1).setValue(catalogCode);
+    if (col.Version_Code !== undefined) sheet.getRange(rowNumber, col.Version_Code + 1).setValue(versionCode);
+    if (col.Effective_Date !== undefined) sheet.getRange(rowNumber, col.Effective_Date + 1).setValue(effectiveDate);
+  });
+
+  if (logSheet) {
+    const scopeLabel = scope === 'plc' ? `PLC ${targetValue}` : targetValue;
+    appendCatalogLog_(
+      logSheet,
+      'Catalog_Groups',
+      'Catalog metadata update',
+      'Success',
+      matchedRowNumbers.length,
+      '',
+      '',
+      `Updated Catalog_Code, Version_Code, and Effective_Date for ${scopeLabel} across ${matchedRowNumbers.length} row(s).`
+    );
+  }
+
+  return {
+    ok: true,
+    message: `Updated catalog metadata for ${scope === 'plc' ? 'PLC ' + targetValue : targetValue} across ${matchedRowNumbers.length} row(s).`
+  };
 }
 
 function matchesOptionalGroupPlc_(skuRow, skuCol, groupPlc) {
