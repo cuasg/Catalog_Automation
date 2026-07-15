@@ -2829,6 +2829,196 @@ function generateCatalogPriceFiles(onlyProductGroup, onlyPriceFileName, options)
   });
 }
 
+function runCatalogPriceFileProductionStep_(job, progressCallback) {
+  const onlyProductGroup = String(job && job.productGroup || '').trim();
+  const onlyPriceFileName = String(job && job.fileName || '').trim();
+  const ss = getCatalogWorkbook_();
+  const skuSheet = ss.getSheetByName('Catalog_SKUs');
+  const groupSheet = ss.getSheetByName('Catalog_Groups');
+  const logSheet = ss.getSheetByName('Generation_Log');
+  if (!skuSheet) throw new Error('Missing Catalog_SKUs sheet.');
+  if (!groupSheet) throw new Error('Missing Catalog_Groups sheet.');
+
+  function updatePriceFileProgress(partial) {
+    job = Object.assign({}, job, partial || {}, {
+      progressAnchorAt: getCatalogTimestamp_()
+    });
+    if (typeof progressCallback === 'function') {
+      progressCallback(Object.assign({}, job));
+    }
+  }
+
+  updatePriceFileProgress({
+    priceFileTotalSteps: 6,
+    priceFileStepIndex: 1,
+    priceFilePhase: 'Loading workbook data'
+  });
+
+  const skuValues = skuSheet.getDataRange().getValues();
+  const skuHeaders = skuValues[0];
+  const skuCol = headerMap_(skuHeaders);
+
+  updatePriceFileProgress({
+    priceFileTotalSteps: 6,
+    priceFileStepIndex: 2,
+    priceFilePhase: 'Loading catalog groups'
+  });
+
+  const groupValues = groupSheet.getDataRange().getValues();
+  const groupHeaders = groupValues[0];
+  const groupCol = headerMap_(groupHeaders);
+  const sheetDefinitions = getSheetDefinitions_(ss);
+
+  const activeGroups = getCatalogRunTargetRows_(groupValues.slice(1), groupCol, {
+    onlyProductGroup,
+    onlyFileName: onlyPriceFileName,
+    generateColumn: 'Generate_XLS',
+    fileColumn: 'Price_File_Name'
+  });
+  const group = activeGroups[0];
+  if (!group) {
+    appendCatalogLog_(logSheet, onlyProductGroup || 'Price Files', 'Generate price file', 'Skipped', 0, '', '', 'No active price-file group found.');
+    return { completed: true, job };
+  }
+
+  const productGroup = String(group[groupCol.Product_Group]).trim();
+  const priceFileName = String(group[groupCol.Price_File_Name]).trim();
+  const jobStartedAt = job.startedAt || getCatalogTimestamp_();
+  const title = String(getOptionalCellValue_(group, groupCol, 'Price_File_Title') || group[groupCol.Catalog_Title] || productGroup).trim();
+  const subtitle = String(getOptionalCellValue_(group, groupCol, 'Price_File_Subtitle') || group[groupCol.Catalog_Subtitle] || '').trim();
+  const versionCode = String(group[groupCol.Version_Code] || '').trim();
+  const groupPlc = getOptionalCellValue_(group, groupCol, 'PLC');
+  const outputFolderId = String(getConfigValue_(group, groupCol, sheetDefinitions, 'Price_File_Output_Folder_ID') || '').trim();
+  const archiveFolderId = String(getConfigValue_(group, groupCol, sheetDefinitions, 'Price_File_Archive_Folder_ID') || '').trim();
+  const outputFileName = priceFileName.replace(/\.xlsx$/i, '');
+  const outputFolder = outputFolderId ? DriveApp.getFolderById(outputFolderId) : null;
+  const archiveFolder = archiveFolderId ? DriveApp.getFolderById(archiveFolderId) : null;
+
+  updatePriceFileProgress({
+    priceFileTotalSteps: 6,
+    priceFileStepIndex: 3,
+    priceFilePhase: 'Filtering SKU rows'
+  });
+
+  const rows = skuValues.slice(1).filter(row =>
+    isTruthy_(row[skuCol.Active]) &&
+    String(row[skuCol.Product_Group]).trim() === productGroup &&
+    matchesOptionalGroupPlc_(row, skuCol, groupPlc) &&
+    row[skuCol.Item_Number]
+  ).sort((a, b) => comparePriceFileRows_(a, b, skuCol));
+
+  if (!rows.length) {
+    appendCatalogLog_(logSheet, productGroup, 'Generate price file', 'Skipped', 0, '', '', 'No active SKU rows found.');
+    return { completed: true, job: Object.assign({}, job, { totalRows: 0, processedRows: 0 }) };
+  }
+
+  updatePriceFileProgress({
+    priceFileTotalSteps: 6,
+    priceFileStepIndex: 4,
+    priceFilePhase: 'Creating spreadsheet',
+    totalRows: rows.length,
+    processedRows: 0
+  });
+
+  const outputSs = SpreadsheetApp.create(outputFileName);
+  const outputSheet = outputSs.getActiveSheet();
+  outputSheet.setName('Price List');
+
+  try {
+    buildPriceFileSheet_(outputSheet, rows, skuCol, {
+      title,
+      subtitle,
+      versionCode,
+      logoFileId: String(getConfigValue_(group, groupCol, sheetDefinitions, 'Logo_File_ID') || '').trim()
+    }, function(progress) {
+      updatePriceFileProgress(Object.assign({
+        priceFileTotalSteps: 6,
+        priceFileStepIndex: 4,
+        totalRows: rows.length
+      }, progress || {}));
+    });
+
+    updatePriceFileProgress({
+      priceFileTotalSteps: 6,
+      priceFileStepIndex: 5,
+      priceFilePhase: 'Saving and archiving',
+      processedRows: rows.length
+    });
+
+    SpreadsheetApp.flush();
+
+    archiveExistingDriveFiles_(outputFolder, archiveFolder, [outputFileName, priceFileName]);
+
+    if (outputFolder) {
+      const file = DriveApp.getFileById(outputSs.getId());
+      outputFolder.addFile(file);
+      DriveApp.getRootFolder().removeFile(file);
+    }
+
+    updatePriceFileProgress({
+      priceFileTotalSteps: 6,
+      priceFileStepIndex: 6,
+      priceFilePhase: 'Recording publish state',
+      processedRows: rows.length
+    });
+
+    maybeRecordProductionPricePublish_({
+      ss,
+      runId: job.runId || '',
+      eventType: 'price_file_publish',
+      productGroup,
+      groupRow: group,
+      groupCol,
+      groupPlc,
+      skuValues,
+      skuCol,
+      rows,
+      catalogFileName: String(group[groupCol.Catalog_File_Name] || '').trim(),
+      priceFileName,
+      versionCode,
+      pdfFileId: '',
+      xlsFileId: outputSs.getId()
+    });
+
+    appendCatalogLog_(
+      logSheet,
+      productGroup,
+      'Generate price file',
+      'Success',
+      rows.length,
+      '',
+      outputSs.getId(),
+      `Created ${priceFileName} with ${rows.length} rows.`,
+      buildProductionLogDetails_('price_file', productGroup, priceFileName, jobStartedAt, getCatalogTimestamp_(), { runId: job.runId || '' })
+    );
+
+    return {
+      completed: true,
+      job: Object.assign({}, job, {
+        totalRows: rows.length,
+        processedRows: rows.length,
+        priceFileTotalSteps: 6,
+        priceFileStepIndex: 6,
+        priceFilePhase: 'Completed'
+      })
+    };
+  } catch (err) {
+    DriveApp.getFileById(outputSs.getId()).setTrashed(true);
+    appendCatalogLog_(
+      logSheet,
+      productGroup,
+      'Generate price file',
+      'Error',
+      rows.length,
+      '',
+      '',
+      err.message,
+      buildProductionLogDetails_('price_file', productGroup, priceFileName, jobStartedAt, getCatalogTimestamp_(), { runId: job.runId || '' })
+    );
+    throw err;
+  }
+}
+
 function generateCatalogPDFs() {
   throw new Error('Legacy sheet-based catalog PDF generation has been retired. Use generateCatalogSlidesPDFs() or the MSI Automation sidebar.');
 }
@@ -4095,7 +4285,14 @@ function runNextCatalogProductionBatch_() {
         return;
       }
     } else if (job.type === 'price_file') {
-      generateCatalogPriceFiles(job.productGroup, job.fileName, { skipCartonNormalization: true });
+      const priceFileStep = runCatalogPriceFileProductionStep_(job, function(partialJob) {
+        state.jobs[state.nextJobIndex] = partialJob;
+        state.updatedAt = getCatalogTimestamp_();
+        if (!saveCatalogProductionState_(state)) {
+          throw new Error('__CATALOG_PRODUCTION_CANCELLED__');
+        }
+      });
+      state.jobs[state.nextJobIndex] = priceFileStep.job;
     } else if (job.type === 'pricing_calc') {
       const pricingStep = runChunkedProductionJobUntilPause_(
         job,
@@ -5468,7 +5665,12 @@ function formatCatalogEffectiveDate_(value) {
   return String(value).trim();
 }
 
-function buildPriceFileSheet_(sheet, rows, col, meta) {
+function buildPriceFileSheet_(sheet, rows, col, meta, progressCallback) {
+  function updatePriceFileBuildProgress(partial) {
+    if (typeof progressCallback !== 'function') return;
+    progressCallback(partial || {});
+  }
+
   const uniquePlcs = [...new Set(
     rows.map(row => formatPriceFilePlc_(row[col.PLC])).filter(Boolean)
   )].sort();
@@ -5512,6 +5714,11 @@ function buildPriceFileSheet_(sheet, rows, col, meta) {
       .setValues(uniquePlcs.map(plc => [plc, '']));
     sheet.getRange(7, 2, uniquePlcs.length, 1).setNumberFormat('0.0000');
   }
+
+  updatePriceFileBuildProgress({
+    priceFilePhase: 'Building row output',
+    processedRows: 0
+  });
 
   const firstTableHeaderRow = 7 + uniquePlcs.length + 2;
   let currentRow = firstTableHeaderRow;
@@ -5559,12 +5766,27 @@ function buildPriceFileSheet_(sheet, rows, col, meta) {
     ]);
 
     currentRow++;
+
+    if (((i + 1) % 75) === 0 || i === rows.length - 1) {
+      updatePriceFileBuildProgress({
+        priceFilePhase: 'Building row output',
+        processedRows: i + 1
+      });
+    }
   }
 
   if (outputValues.length) {
+    updatePriceFileBuildProgress({
+      priceFilePhase: 'Writing sheet rows',
+      processedRows: rows.length
+    });
     sheet.getRange(firstTableHeaderRow, 3, outputValues.length, 1).setNumberFormat('@');
     sheet.getRange(firstTableHeaderRow, 1, outputValues.length, 7).setValues(outputValues);
   }
+  updatePriceFileBuildProgress({
+    priceFilePhase: 'Applying formatting',
+    processedRows: rows.length
+  });
   if (hideInnerCartonColumn) sheet.hideColumns(4);
   if (hideMasterCaseColumn) sheet.hideColumns(5);
   tableHeaderRows.forEach(rowNumber => formatPriceFileTableHeader_(sheet, rowNumber));
@@ -5578,6 +5800,11 @@ function buildPriceFileSheet_(sheet, rows, col, meta) {
     groupDividerRows
   );
   groupDividerRows.forEach(rowNumber => formatPriceFileGroupDivider_(sheet, rowNumber));
+
+  updatePriceFileBuildProgress({
+    priceFilePhase: 'Sheet build complete',
+    processedRows: rows.length
+  });
 }
 
 function formatPriceFilePlc_(value) {

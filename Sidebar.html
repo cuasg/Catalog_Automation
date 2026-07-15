@@ -2057,6 +2057,21 @@
           return totalRows ? (processedRows + ' of ' + totalRows + ' rows') : 'Preparing rows';
         }
 
+        if (job.type === 'price_file') {
+          const totalRows = Number(job.totalRows) || 0;
+          const processedRows = Number(job.processedRows) || 0;
+          const stepIndex = Math.max(0, Number(job.priceFileStepIndex) || 0);
+          const totalSteps = Math.max(0, Number(job.priceFileTotalSteps) || 0);
+          const phase = String(job.priceFilePhase || '').trim();
+          if (totalRows) {
+            return processedRows + ' of ' + totalRows + ' rows' + (phase ? ' | ' + phase : '');
+          }
+          if (phase && totalSteps) {
+            return phase + ' (' + Math.min(totalSteps, stepIndex) + ' of ' + totalSteps + ')';
+          }
+          return phase || 'Preparing price list';
+        }
+
         if (job.type === 'repair_cartons') {
           const totalGroups = Number(job.totalGroups) || 0;
           const nextGroupIndex = Number(job.nextGroupIndex) || 0;
@@ -2097,6 +2112,16 @@
           const totalRows = Number(job.totalRows) || 0;
           const processedRows = Number(job.processedRows) || 0;
           return totalRows ? (processedRows / totalRows) * 100 : 5;
+        }
+
+        if (job.type === 'price_file') {
+          const totalRows = Number(job.totalRows) || 0;
+          const processedRows = Number(job.processedRows) || 0;
+          if (totalRows) return (processedRows / totalRows) * 100;
+          const stepIndex = Math.max(0, Number(job.priceFileStepIndex) || 0);
+          const totalSteps = Math.max(0, Number(job.priceFileTotalSteps) || 0);
+          if (totalSteps) return Math.min(22, (stepIndex / totalSteps) * 22);
+          return 5;
         }
 
         if (job.type === 'repair_cartons') {
@@ -2473,6 +2498,25 @@
           const chunkWeight = (chunkRows / totalRows) * 100;
           const perRowHistoricalMs = historicalJobMs ? (historicalJobMs / Math.max(1, totalRows)) : 0;
           const estimatedMs = Math.max(5000, perRowHistoricalMs ? perRowHistoricalMs * chunkRows : chunkRows * 18);
+          const stageBase = base + chunkWeight * Math.min(0.985, elapsedMs / estimatedMs);
+          return Math.min(99.2, stageBase);
+        }
+
+        if (job.type === 'price_file') {
+          const totalRows = Number(job.totalRows) || 0;
+          const processedRows = Number(job.processedRows) || 0;
+          if (!totalRows) {
+            const stepIndex = Math.max(0, Number(job.priceFileStepIndex) || 0);
+            const totalSteps = Math.max(0, Number(job.priceFileTotalSteps) || 0);
+            const prepStepFraction = totalSteps ? Math.min(0.98, stepIndex / totalSteps) : 0;
+            const prepElapsedFraction = Math.min(0.98, elapsedMs / 4000);
+            return Math.min(24, 4 + (Math.max(prepStepFraction, prepElapsedFraction) * 20));
+          }
+          const chunkRows = Math.max(1, Math.min(150, totalRows - processedRows));
+          const base = (processedRows / totalRows) * 100;
+          const chunkWeight = (chunkRows / totalRows) * 100;
+          const perRowHistoricalMs = historicalJobMs ? (historicalJobMs / Math.max(1, totalRows)) : 0;
+          const estimatedMs = Math.max(3000, perRowHistoricalMs ? perRowHistoricalMs * chunkRows : chunkRows * 10);
           const stageBase = base + chunkWeight * Math.min(0.985, elapsedMs / estimatedMs);
           return Math.min(99.2, stageBase);
         }
