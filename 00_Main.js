@@ -5644,7 +5644,7 @@ function formatPriceFileCellValue_(value) {
 }
 
 function buildPriceFileNetFormula_(rowNumber, lookupRange) {
-  return `=IF(UPPER(TO_TEXT(F${rowNumber}))="POA","POA",IF(OR(F${rowNumber}="",F${rowNumber}="-"),"-",IFERROR(F${rowNumber}*VLOOKUP(C${rowNumber},${lookupRange},2,FALSE),"-")))`;
+  return `=IF(UPPER(TO_TEXT(G${rowNumber}))="POA","POA",IF(OR(G${rowNumber}="",G${rowNumber}="-"),"-",IFERROR(G${rowNumber}*VLOOKUP(D${rowNumber},${lookupRange},2,FALSE),"-")))`;
 }
 
 function formatCatalogVisibleCellValue_(value) {
@@ -5727,6 +5727,7 @@ function buildPriceFileSheet_(sheet, rows, col, meta, progressCallback) {
   const header = [[
     'MSI Item #',
     'General Description',
+    '',
     'PLC',
     'Inner Carton Qty',
     'Master Case Qty',
@@ -5749,7 +5750,7 @@ function buildPriceFileSheet_(sheet, rows, col, meta, progressCallback) {
     const group = buildPriceFileGroup_(row, col);
     if (group.key !== previousGroupKey) {
       groupDividerRows.push(currentRow);
-      outputValues.push([group.label, '', '', '', '', '', '']);
+      outputValues.push([group.label, '', '', '', '', '', '', '']);
       currentRow++;
       previousGroupKey = group.key;
     }
@@ -5759,6 +5760,7 @@ function buildPriceFileSheet_(sheet, rows, col, meta, progressCallback) {
     outputValues.push([
       row[col.Item_Number],
       buildCatalogDescription_(row, col),
+      '',
       formatPriceFilePlc_(row[col.PLC]),
       row[col.Inner_Carton],
       row[col.Master_Case],
@@ -5781,15 +5783,15 @@ function buildPriceFileSheet_(sheet, rows, col, meta, progressCallback) {
       priceFilePhase: 'Writing sheet rows',
       processedRows: rows.length
     });
-    sheet.getRange(firstTableHeaderRow, 3, outputValues.length, 1).setNumberFormat('@');
-    sheet.getRange(firstTableHeaderRow, 1, outputValues.length, 7).setValues(outputValues);
+    sheet.getRange(firstTableHeaderRow, 4, outputValues.length, 1).setNumberFormat('@');
+    sheet.getRange(firstTableHeaderRow, 1, outputValues.length, 8).setValues(outputValues);
   }
   updatePriceFileBuildProgress({
     priceFilePhase: 'Applying formatting',
     processedRows: rows.length
   });
-  if (hideInnerCartonColumn) sheet.hideColumns(4);
-  if (hideMasterCaseColumn) sheet.hideColumns(5);
+  if (hideInnerCartonColumn) sheet.hideColumns(5);
+  if (hideMasterCaseColumn) sheet.hideColumns(6);
   tableHeaderRows.forEach(rowNumber => formatPriceFileTableHeader_(sheet, rowNumber));
 
   applyPriceFileFormatting_(
@@ -5857,17 +5859,19 @@ function formatPriceFileTableHeader_(sheet, rowNumber) {
   const blue = '#1F4E78';
   const white = '#FFFFFF';
 
-  sheet.getRange(rowNumber, 1, 1, 7)
+  sheet.getRange(rowNumber, 1, 1, 8)
     .setFontWeight('bold')
     .setFontColor(white)
     .setBackground(blue)
     .setHorizontalAlignment('center')
     .setVerticalAlignment('middle')
     .setWrap(true);
+
+  sheet.getRange(rowNumber, 2, 1, 2).merge();
 }
 
 function formatPriceFileGroupDivider_(sheet, rowNumber) {
-  const range = sheet.getRange(rowNumber, 1, 1, 7);
+  const range = sheet.getRange(rowNumber, 1, 1, 8);
   range.merge();
   range
     .setBackground('#D9EAF7')
@@ -8514,7 +8518,7 @@ function applyPriceFileFormatting_(sheet, firstTableHeaderRow, lastUsedRow, mult
   const white = '#FFFFFF';
 
   // Main header styling
-  sheet.getRange('A1:G4')
+  sheet.getRange('A1:H4')
     .setBackground(blue)
     .setFontColor(white)
     .setVerticalAlignment('middle');
@@ -8553,23 +8557,23 @@ function applyPriceFileFormatting_(sheet, firstTableHeaderRow, lastUsedRow, mult
 
   // Format all used data area
   if (lastUsedRow >= firstTableHeaderRow) {
-    const fullRange = sheet.getRange(firstTableHeaderRow, 1, lastUsedRow - firstTableHeaderRow + 1, 7);
+    const fullRange = sheet.getRange(firstTableHeaderRow, 1, lastUsedRow - firstTableHeaderRow + 1, 8);
     fullRange.setBorder(true, true, true, true, true, true);
     fullRange.setVerticalAlignment('middle');
 
     // Center operational and pricing columns
     sheet.getRange(firstTableHeaderRow, 1, lastUsedRow - firstTableHeaderRow + 1, 1).setHorizontalAlignment('center'); // MSI Item #
-    sheet.getRange(firstTableHeaderRow, 3, lastUsedRow - firstTableHeaderRow + 1, 5).setHorizontalAlignment('center'); // PLC through Net Ea
+    sheet.getRange(firstTableHeaderRow, 4, lastUsedRow - firstTableHeaderRow + 1, 5).setHorizontalAlignment('center'); // PLC through Net Ea
 
     // Description left aligned
-    sheet.getRange(firstTableHeaderRow, 2, lastUsedRow - firstTableHeaderRow + 1, 1).setHorizontalAlignment('left');
-    sheet.getRange(firstTableHeaderRow, 2, lastUsedRow - firstTableHeaderRow + 1, 1).setWrap(false);
+    sheet.getRange(firstTableHeaderRow, 2, lastUsedRow - firstTableHeaderRow + 1, 2).setHorizontalAlignment('left');
+    sheet.getRange(firstTableHeaderRow, 2, lastUsedRow - firstTableHeaderRow + 1, 2).setWrap(false);
 
     // PLC displayed as text so values like 000 are preserved
-    sheet.getRange(firstTableHeaderRow, 3, lastUsedRow - firstTableHeaderRow + 1, 1).setNumberFormat('@');
+    sheet.getRange(firstTableHeaderRow, 4, lastUsedRow - firstTableHeaderRow + 1, 1).setNumberFormat('@');
 
     // Currency columns
-    sheet.getRange(firstTableHeaderRow, 6, lastUsedRow - firstTableHeaderRow + 1, 2).setNumberFormat('$#,##0.00');
+    sheet.getRange(firstTableHeaderRow, 7, lastUsedRow - firstTableHeaderRow + 1, 2).setNumberFormat('$#,##0.00');
 
     const nonDataRowLookup = (tableHeaderRows || []).concat(groupDividerRows || []).reduce((lookup, rowNumber) => {
       lookup[rowNumber] = true;
@@ -8581,7 +8585,7 @@ function applyPriceFileFormatting_(sheet, firstTableHeaderRow, lastUsedRow, mult
 
     for (let rowNumber = firstTableHeaderRow; rowNumber <= lastUsedRow; rowNumber++) {
       if (nonDataRowLookup[rowNumber]) continue;
-      const rangeName = `A${rowNumber}:G${rowNumber}`;
+      const rangeName = `A${rowNumber}:H${rowNumber}`;
       (dataRowIndex % 2 === 0 ? whiteRows : blueRows).push(rangeName);
       dataRowIndex++;
     }
@@ -8592,16 +8596,20 @@ function applyPriceFileFormatting_(sheet, firstTableHeaderRow, lastUsedRow, mult
 
   // Column widths tuned for 8.5 x 11 landscape style
   sheet.setColumnWidth(1, 115); // MSI Item #
-  sheet.setColumnWidth(2, 330); // Description
-  sheet.setColumnWidth(3, 60);  // PLC
-  sheet.setColumnWidth(4, 112); // IC
-  sheet.setColumnWidth(5, 120); // MC
-  sheet.setColumnWidth(6, 98);  // List Price
-  sheet.setColumnWidth(7, 98);  // Net Ea
+  sheet.setColumnWidth(2, 255); // Description part 1
+  sheet.setColumnWidth(3, 95);  // Description part 2 / overflow room
+  sheet.setColumnWidth(4, 60);  // PLC
+  sheet.setColumnWidth(5, 112); // IC
+  sheet.setColumnWidth(6, 120); // MC
+  sheet.setColumnWidth(7, 98);  // List Price
+  sheet.setColumnWidth(8, 98);  // Net Ea
 
-  sheet.autoResizeColumn(2);
-  if (sheet.getColumnWidth(2) < 330) {
-    sheet.setColumnWidth(2, 330);
+  sheet.autoResizeColumns(2, 2);
+  if (sheet.getColumnWidth(2) < 255) {
+    sheet.setColumnWidth(2, 255);
+  }
+  if (sheet.getColumnWidth(3) < 95) {
+    sheet.setColumnWidth(3, 95);
   }
 
   sheet.setRowHeights(1, 3, 24);
