@@ -7648,8 +7648,16 @@ function buildCatalogStainlessSteelButtWeldTableRows_(rows, col) {
 
 function getCatalogButtWeldWeightSortWeight_(weight) {
   const normalized = normalizeVariantKey_(weight).toLowerCase();
-  if (normalized.indexOf('std') !== -1 || normalized.indexOf('standard weight') !== -1) return 10;
-  if (normalized.indexOf('lw') !== -1 || normalized.indexOf('light weight') !== -1) return 20;
+  // Support both the legacy labels and the compact schedule labels used by
+  // the stainless butt-weld catalog metadata: S40 before S10.
+  if (normalized === 's40' ||
+      normalized.indexOf('s-40') !== -1 ||
+      normalized.indexOf('std') !== -1 ||
+      normalized.indexOf('standard weight') !== -1) return 10;
+  if (normalized === 's10' ||
+      normalized.indexOf('s-10') !== -1 ||
+      normalized.indexOf('lw') !== -1 ||
+      normalized.indexOf('light weight') !== -1) return 20;
   if (normalized.indexOf('xh') !== -1 || normalized.indexOf('extra heavy') !== -1) return 30;
   return 100;
 }
