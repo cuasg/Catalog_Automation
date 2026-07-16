@@ -8227,6 +8227,8 @@ function getCatalogSectionPackingLaneKey_(section) {
   if (variant2 === '2000lb' || variant2 === '2000 lb') return '2000lb';
   if (variant2 === 'threaded') return 'threaded';
   if (variant2 === 'socket-weld' || variant2 === 'socket weld' || variant2 === 'socket') return 'socket-weld';
+  if (variant2 === 's40' || variant2.indexOf('s-40') !== -1) return 's40';
+  if (variant2 === 's10' || variant2.indexOf('s-10') !== -1) return 's10';
   if (variant2.indexOf('std') !== -1 || variant2.indexOf('standard weight') !== -1) return 'std';
   if (variant2.indexOf('lw') !== -1 || variant2.indexOf('light weight') !== -1) return 'lw';
   if (variant2.indexOf('xh') !== -1 || variant2.indexOf('extra heavy') !== -1) return 'xh';
@@ -8374,7 +8376,7 @@ function shouldRequireCatalogLeadingSection_(section) {
     return fittingWeight <= 2;
   }
 
-  if (variant2 && /^(150 ?lb|300 ?lb|2000 ?lb|3000 ?lb|threaded|socket weld|socket-weld|304|316)$/i.test(variant2)) {
+  if (variant2 && /^(150 ?lb|300 ?lb|2000 ?lb|3000 ?lb|threaded|socket weld|socket-weld|s10|s40|std|lw|304|316)$/i.test(variant2)) {
     return fittingWeight <= 3;
   }
 
