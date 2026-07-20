@@ -8708,7 +8708,6 @@ function comparePriceFileRows_(a, b, col) {
     const detailB = getValveMaterialDetail_(b, col);
 
     return [
-      normalizeMatchValue_(a[col.PLC]).localeCompare(normalizeMatchValue_(b[col.PLC]), undefined, { numeric: true }),
       getCatalogFittingTypeSortWeight_(productGroupA, a[col.Fitting_Type]) -
         getCatalogFittingTypeSortWeight_(productGroupB, b[col.Fitting_Type]),
       String(a[col.Fitting_Type] || '').localeCompare(String(b[col.Fitting_Type] || '')),
@@ -8716,6 +8715,7 @@ function comparePriceFileRows_(a, b, col) {
       familyA.localeCompare(familyB),
       detailA.localeCompare(detailB),
       normalizeVariant2Key_(getOptionalCellValue_(a, col, 'Variant_2')).localeCompare(normalizeVariant2Key_(getOptionalCellValue_(b, col, 'Variant_2'))),
+      normalizeMatchValue_(a[col.PLC]).localeCompare(normalizeMatchValue_(b[col.PLC]), undefined, { numeric: true }),
       parseCatalogSizeSortValue_(a[col.Size_1]) - parseCatalogSizeSortValue_(b[col.Size_1]),
       parseCatalogSizeSortValue_(a[col.Size_2]) - parseCatalogSizeSortValue_(b[col.Size_2]),
       parseCatalogSizeSortValue_(a[col.Size_3]) - parseCatalogSizeSortValue_(b[col.Size_3]),
@@ -8759,12 +8759,12 @@ function comparePriceFileRows_(a, b, col) {
     const sizePartsB = getCatalogRowSizeParts_(b, col);
 
     return [
-      normalizeMatchValue_(a[col.PLC]).localeCompare(normalizeMatchValue_(b[col.PLC]), undefined, { numeric: true }),
-      getCatalogVariant2SortWeight_(variant2A) - getCatalogVariant2SortWeight_(variant2B),
-      variant2A.localeCompare(variant2B, undefined, { numeric: true }),
+      getCatalogSectionVariantSortWeight_(variant2A) - getCatalogSectionVariantSortWeight_(variant2B),
       getCatalogFittingTypeSortWeight_(productGroupA, a[col.Fitting_Type]) -
         getCatalogFittingTypeSortWeight_(productGroupB, b[col.Fitting_Type]),
       String(a[col.Fitting_Type] || '').localeCompare(String(b[col.Fitting_Type] || '')),
+      variant2A.localeCompare(variant2B, undefined, { numeric: true }),
+      normalizeMatchValue_(a[col.PLC]).localeCompare(normalizeMatchValue_(b[col.PLC]), undefined, { numeric: true }),
       variantSortWeight_(variantA) - variantSortWeight_(variantB),
       variantA.localeCompare(variantB),
       parseCatalogSizeSortValue_(sizePartsA[0]) - parseCatalogSizeSortValue_(sizePartsB[0]),
