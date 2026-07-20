@@ -6175,7 +6175,10 @@ function buildPriceFileGroup_(row, col) {
   const finish = rawVariant ? getDisplayVariantName_(rawVariant) : '';
   const classification = normalizeVariant2Key_(getOptionalCellValue_(row, col, 'Variant_2'));
   const fittingType = String(row[col.Fitting_Type] || '').trim();
-  return buildPriceFileSectionGroup_([finish, classification, fittingType], productGroup || 'Products');
+  const displayedClassification = shouldOmitCatalogPressureClassFromTitle_(fittingType, classification)
+    ? ''
+    : classification;
+  return buildPriceFileSectionGroup_([finish, displayedClassification, fittingType], productGroup || 'Products');
 }
 
 function buildPriceFileSectionGroup_(parts, fallbackLabel) {
@@ -6683,6 +6686,10 @@ function buildCatalogSectionDisplayTitle_(fittingType, variant2, productGroup) {
   const secondaryVariant = normalizeVariant2Key_(variant2);
   const normalizedProductGroup = String(productGroup || '').toLowerCase();
 
+  if (shouldOmitCatalogPressureClassFromTitle_(fittingType, secondaryVariant)) {
+    return baseTitle;
+  }
+
   if (normalizedProductGroup.indexOf('stainless steel flange') !== -1) {
     return baseTitle;
   }
@@ -6698,6 +6705,16 @@ function buildCatalogSectionDisplayTitle_(fittingType, variant2, productGroup) {
   }
 
   return secondaryVariant ? `${baseTitle} - ${secondaryVariant}` : baseTitle;
+}
+
+function shouldOmitCatalogPressureClassFromTitle_(fittingType, variant) {
+  const normalizedFittingType = String(fittingType || '').toLowerCase();
+  const normalizedVariant = String(variant || '').trim().toLowerCase();
+  const isBushingOrPlug = normalizedFittingType.indexOf('hex bushing') !== -1 ||
+    normalizedFittingType.indexOf('plug') !== -1;
+  const isPressureClass = /^\d+\s*lb$/.test(normalizedVariant);
+
+  return isBushingOrPlug && isPressureClass;
 }
 
 function compareCatalogSectionGroups_(a, b) {
