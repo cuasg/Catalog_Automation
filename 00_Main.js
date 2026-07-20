@@ -6775,7 +6775,27 @@ function getCatalogVariant2SortWeight_(variant2) {
 
 function getCatalogFittingTypeSortWeight_(productGroup, fittingType) {
   const orderName = getCatalogFittingOrderName_(productGroup);
-  const normalizedFittingType = normalizeCatalogFittingTypeForSort_(fittingType);
+  let normalizedFittingType = normalizeCatalogFittingTypeForSort_(fittingType);
+
+  if (orderName === 'merchantSteelFittings') {
+    const rawMerchantFittingType = String(fittingType || '').toLowerCase();
+    const merchantAliases = {
+      'square head solid plugs': 'square head plugs',
+      'square socket countersunk plugs': 'square socket plugs',
+      'hex socket countersunk plugs': 'hex socket plugs',
+      'flush hex socket countersunk plugs': 'flush hex socket plugs',
+      'solid caps': 'hex caps',
+      'caps': 'hex caps'
+    };
+    normalizedFittingType = /solid\s+hex\s+head\s+plug/.test(rawMerchantFittingType)
+      ? 'hex head plugs'
+      : (merchantAliases[normalizedFittingType] || normalizedFittingType);
+  } else if (normalizedFittingType === 'hex socket plugs' ||
+      normalizedFittingType === 'square socket plugs' ||
+      normalizedFittingType === 'flush hex socket plugs') {
+    normalizedFittingType = 'plugs';
+  }
+
   const activeOrder = getCatalogFittingOrderMap_(orderName);
   const activeWeight = activeOrder[normalizedFittingType];
 
@@ -6808,7 +6828,9 @@ function getCatalogFittingOrderMap_(orderName) {
       '90-degree street elbows',
       '45-degree street elbows',
       'tees',
+      'side outlet elbows',
       'side outlet tees',
+      'street service tees',
       'crosses',
       'unions',
       'standard couplings',
@@ -6830,7 +6852,9 @@ function getCatalogFittingOrderMap_(orderName) {
       'extension pieces',
       'reducing couplings',
       'reducing elbows',
-      'reducing tees'
+      'reducing tees',
+      '45-degree y laterals',
+      'outlets'
     ],
     forged: [
       'full couplings',
@@ -6892,28 +6916,16 @@ function getCatalogFittingOrderMap_(orderName) {
       'short radius return bends'
     ],
     valve: [
-      '200 lb hornet wog brass gate valves',
-      '200 lb hornet wog brass globe valves',
-      '200 lb wog brass hose stop',
-      '600 lb wog brass full port ball valves',
-      '600 lb wog brass full port lead free ball valves',
-      '600 lb wog brass standard port ball valves',
-      'fpt x fpt swing check valves',
-      'fpt x fpt gas ball valves',
-      'mpt x male flare gas ball valves',
-      'male flare x male flare gas ball valves',
-      'female flare x male flare gas ball valves',
-      'mini fpt x fpt ball valves',
-      '200 lb wog brass y-strainer',
-      'mini mpt x fpt ball valves',
-      '1000 lb wog 316ss full port ball valves',
-      '2000 lb wog 316ss full port ball valves',
-      '2000 lb wog 316ss 3 piece full port ball valves',
-      '200 lb wog 316ss gate valves',
-      '200 lb wog 316ss swing check valves',
-      '2000 lb carbon steel full port ball valves',
-      '2000 lb carbon steel standard port ball valves',
-      'iron fpt x brass sweat dielectric unions'
+      'gate valves',
+      'full port ball valves',
+      'standard port ball valves',
+      'swing check valves',
+      'globe valves',
+      'gas ball valves',
+      'hose stop',
+      'y-strainer',
+      'boiler drain',
+      'dielectric unions'
     ]
   };
 
@@ -6943,8 +6955,13 @@ function normalizeCatalogFittingTypeForSort_(fittingType) {
     '90 degree street elbows': '90-degree street elbows',
     '45 degree street elbows': '45-degree street elbows',
     'reducing elbows': '90-degree reducing elbows',
+    '90 degree reducing elbows': '90-degree reducing elbows',
+    '90 degree reducing street elbows': '90-degree reducing elbows',
+    'side outlet elbow': 'side outlet elbows',
+    'side outlet elbows': 'side outlet elbows',
     'street service tee': 'street service tees',
     'street service tees': 'street service tees',
+    'street service': 'street service tees',
     'square head plugs': 'square head plugs',
     'cored or hollow hex head plugs': 'square head cored plugs',
     'cored or hollow square head plugs': 'square head cored plugs',
@@ -6966,26 +6983,46 @@ function normalizeCatalogFittingTypeForSort_(fittingType) {
     'hex head plugs': 'hex head plugs',
     'hex socket plug': 'hex socket plugs',
     'hex socket plugs': 'hex socket plugs',
+    'hex socket countersunk plug': 'hex socket plugs',
+    'hex socket countersunk plugs': 'hex socket plugs',
     'square socket plug': 'square socket plugs',
     'square socket plugs': 'square socket plugs',
+    'square socket countersunk plug': 'square socket plugs',
+    'square socket countersunk plugs': 'square socket plugs',
     'flush hex socket plug': 'flush hex socket plugs',
     'flush hex socket plugs': 'flush hex socket plugs',
+    'flush hex socket countersunk plug': 'flush hex socket plugs',
+    'flush hex socket countersunk plugs': 'flush hex socket plugs',
     'hex cap': 'hex caps',
     'hex caps': 'hex caps',
+    'coupling': 'standard couplings',
+    'couplings': 'standard couplings',
+    'hex locknut': 'locknuts',
+    'hex locknuts': 'locknuts',
+    'type "a" stub end': 'lap joint stub ends',
+    'type "a" stub ends': 'lap joint stub ends',
     'flat face lap joint flange': 'flat face lap joint',
     'flat face lap joint flanges': 'flat face lap joint',
+    'blind flanges rf': 'blind',
+    'lapjoint flanges rf': 'lap joint',
+    'slip on flanges rf': 'slip on',
+    'socket weld flanges rf': 'socket weld',
+    'threaded flanges rf': 'threaded',
+    'weld neck flanges rf': 'weld neck',
     'lap joint stub end': 'lap joint stub ends',
     'lap joint stub ends': 'lap joint stub ends',
+    'tank flange': 'companion flanges',
+    'tank flanges': 'companion flanges',
     'concentric reducer': 'concentric reducers',
     'concentric reducers': 'concentric reducers',
     'eccentric reducer': 'eccentric reducers',
     'eccentric reducers': 'eccentric reducers',
     '90 degree elbow long radius': '90-degree long radius elbows',
     '90 degree elbow short radius': '90-degree short radius elbows',
-    'flush hex socket countersunk plugs': 'flush hex socket countersunk plugs',
-    'flush hex socket countersunk plug': 'flush hex socket countersunk plugs',
-    'hex socket countersunk plugs': 'hex socket countersunk plugs',
-    'square socket countersunk plugs': 'square socket countersunk plugs',
+    'flush hex socket countersunk plugs': 'flush hex socket plugs',
+    'flush hex socket countersunk plug': 'flush hex socket plugs',
+    'hex socket countersunk plugs': 'hex socket plugs',
+    'square socket countersunk plugs': 'square socket plugs',
     'face bushings': 'face bushings',
     'hose barb x mpt or combination nipple or king nipple': 'hose barbs',
     'male hose barb': 'hose barbs',
@@ -7010,7 +7047,13 @@ function normalizeCatalogFittingTypeForSort_(fittingType) {
     '90 degree long radius elbows': '90-degree long radius elbows',
     '90 degree short radius elbows': '90-degree short radius elbows',
     'return bends long radius': 'long radius return bends',
-    'return bends short radius': 'short radius return bends'
+    'return bends short radius': 'short radius return bends',
+    'wye or laterals': '45-degree y laterals',
+    'std bull plug': 'plugs',
+    'globe valve': 'globe valves',
+    'gas ball valve': 'gas ball valves',
+    'standard port ball valve': 'standard port ball valves',
+    'full port ball valve': 'full port ball valves'
   };
 
   return aliases[normalized] || normalized;
