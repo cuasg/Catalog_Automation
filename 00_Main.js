@@ -6859,14 +6859,15 @@ function getCatalogFittingOrderMap_(orderName) {
       'reducing couplings'
     ],
     merchantSteelFittings: [
-      'face bushings',
-      'hex bushings',
       'square head plugs',
       'hex head plugs',
-      'hex socket plugs',
       'square socket plugs',
+      'hex socket plugs',
       'flush hex socket plugs',
-      'hex caps'
+      'hex caps',
+      'hex bushings',
+      'face bushings',
+      'hose barbs'
     ],
     flange: [
       'threaded',
@@ -6987,6 +6988,8 @@ function normalizeCatalogFittingTypeForSort_(fittingType) {
     'square socket countersunk plugs': 'square socket countersunk plugs',
     'face bushings': 'face bushings',
     'hose barb x mpt or combination nipple or king nipple': 'hose barbs',
+    'male hose barb': 'hose barbs',
+    'male hose barbs': 'hose barbs',
     'hose barbs': 'hose barbs',
     'caps': 'solid caps',
     'floor flanges': 'full flanges',
