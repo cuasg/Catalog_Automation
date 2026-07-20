@@ -6719,12 +6719,20 @@ function shouldOmitCatalogPressureClassFromTitle_(fittingType, variant) {
 
 function compareCatalogSectionGroups_(a, b) {
   return [
-    getCatalogVariant2SortWeight_(a.variant2) - getCatalogVariant2SortWeight_(b.variant2),
+    getCatalogSectionVariantSortWeight_(a.variant2) - getCatalogSectionVariantSortWeight_(b.variant2),
     getCatalogSectionFittingSortWeight_(a.productGroup, a.fittingType, a.variant2) -
       getCatalogSectionFittingSortWeight_(b.productGroup, b.fittingType, b.variant2),
     String(a.fittingType || '').localeCompare(String(b.fittingType || '')),
     String(a.variant2 || '').localeCompare(String(b.variant2 || ''))
   ].find(result => result !== 0) || 0;
+}
+
+function getCatalogSectionVariantSortWeight_(variant2) {
+  const normalized = normalizeVariant2Key_(variant2).trim();
+  // Bushing and plug rows intentionally omit pressure class. Keep them in
+  // the Class 150 lane so they do not sort before the catalog or with Class
+  // 300 sections.
+  return normalized ? getCatalogVariant2SortWeight_(normalized) : 10;
 }
 
 function getCatalogSectionFittingSortWeight_(productGroup, fittingType, variant2) {
