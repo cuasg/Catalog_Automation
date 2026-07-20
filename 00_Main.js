@@ -6738,42 +6738,10 @@ function getCatalogSectionFittingSortWeight_(productGroup, fittingType, variant2
 }
 
 function getForgedStainlessFittingSortWeight_(fittingType, variant2) {
-  const normalizedFittingType = normalizeCatalogFittingTypeForSort_(fittingType);
-  const normalizedVariant2 = normalizeVariant2Key_(variant2).toLowerCase();
-  const socketOrder = [
-    'tees',
-    '90-degree elbows',
-    '45-degree elbows',
-    'reducing couplings',
-    'solid caps',
-    'full couplings',
-    'unions',
-    'outlets',
-    'socket weld inserts',
-    'crosses'
-  ];
-  const threadedOrder = [
-    '90-degree elbows',
-    '45-degree elbows',
-    '90-degree street elbows',
-    'unions',
-    'tees',
-    'solid caps',
-    'full couplings',
-    'half couplings',
-    'square head plugs',
-    'hex bushings',
-    'reducing couplings',
-    'outlets',
-    'crosses',
-    'socket weld inserts'
-  ];
-  const order = normalizedVariant2 === 'socket-weld' || normalizedVariant2 === 'socket weld'
-    ? socketOrder
-    : threadedOrder;
-  const index = order.indexOf(normalizedFittingType);
-
-  return index === -1 ? 1000 + getCatalogFittingTypeSortWeight_('Forged Stainless Steel Fittings', fittingType) : index;
+  // Forged stainless uses the shared fitting sequence. Connection type is
+  // sorted separately before this function so threaded and socket-weld
+  // sections remain in distinct blocks while sharing the same fitting order.
+  return getCatalogFittingTypeSortWeight_('Malleable Iron Fittings', fittingType);
 }
 
 function getCatalogVariant2SortWeight_(variant2) {
@@ -6786,6 +6754,8 @@ function getCatalogVariant2SortWeight_(variant2) {
   if (normalized === '2000lb' || normalized === '2000 lb') return 25;
   if (normalized === 'threaded') return 10;
   if (normalized === 'socket-weld' || normalized === 'socket weld' || normalized === 'socket') return 20;
+  if (normalized === 's40' || normalized === 's-40') return 10;
+  if (normalized === 's10' || normalized === 's-10') return 20;
   if (normalized.indexOf('std') !== -1 || normalized.indexOf('standard weight') !== -1) return 10;
   if (normalized.indexOf('lw') !== -1 || normalized.indexOf('light weight') !== -1) return 20;
   if (normalized.indexOf('xh') !== -1 || normalized.indexOf('extra heavy') !== -1) return 30;
@@ -6813,7 +6783,7 @@ function getCatalogFittingOrderName_(productGroup) {
   const normalized = String(productGroup || '').toLowerCase();
 
   if (normalized.indexOf('merchant steel fittings') !== -1) return 'merchantSteelFittings';
-  if (normalized.indexOf('forged steel fittings') !== -1) return 'forgedSteelFittings';
+  if (normalized.indexOf('forged steel fittings') !== -1) return 'general';
   if (normalized.indexOf('valve') !== -1) return 'valve';
   if (normalized.indexOf('butt') !== -1 || normalized.indexOf('weld fitting') !== -1) return 'buttWeld';
   if (normalized.indexOf('flange') !== -1) return 'flange';
@@ -6829,24 +6799,30 @@ function getCatalogFittingOrderMap_(orderName) {
       '45-degree elbows',
       '90-degree street elbows',
       '45-degree street elbows',
-      'side outlet elbows',
-      'unions',
-      '90-degree reducing elbows',
       'tees',
-      'reducing tees',
-      'street service tees',
       'side outlet tees',
       'crosses',
-      'locknuts',
-      'hex bushings',
-      'square head plugs',
-      'solid caps',
-      'full flanges',
-      'reducing street elbows',
-      'reducing couplings',
+      'unions',
       'standard couplings',
+      'full couplings',
+      'half couplings',
+      'solid caps',
+      'companion flanges',
+      'full flanges',
+      'floor flanges',
+      'hex bushings',
+      'bushings',
+      'locknuts',
+      'square head plugs',
+      'square head cored plugs',
+      'square head solid plugs',
+      'hex plugs',
+      'plugs',
+      'socket weld inserts',
       'extension pieces',
-      '45-degree y laterals'
+      'reducing couplings',
+      'reducing elbows',
+      'reducing tees'
     ],
     forged: [
       'full couplings',
@@ -6875,13 +6851,14 @@ function getCatalogFittingOrderMap_(orderName) {
       'reducing couplings'
     ],
     merchantSteelFittings: [
-      'square head plugs',
-      'flush hex socket countersunk plugs',
-      'hex socket countersunk plugs',
-      'square socket countersunk plugs',
       'face bushings',
-      'hose barbs',
-      'hex bushings'
+      'hex bushings',
+      'square head plugs',
+      'hex head plugs',
+      'hex socket plugs',
+      'square socket plugs',
+      'flush hex socket plugs',
+      'hex caps'
     ],
     flange: [
       'threaded',
@@ -6889,17 +6866,19 @@ function getCatalogFittingOrderMap_(orderName) {
       'slip-on',
       'weld neck',
       'socket weld',
+      'flat face lap joint',
       'lap joint'
     ],
     buttWeld: [
       '90-degree long radius elbows',
       '90-degree short radius elbows',
       '45-degree elbows',
-      'solid caps',
       'tees',
+      'solid caps',
       'reducing tees',
       'concentric reducers',
       'eccentric reducers',
+      'lap joint stub ends',
       'long radius return bends',
       'short radius return bends'
     ],
@@ -6958,10 +6937,42 @@ function normalizeCatalogFittingTypeForSort_(fittingType) {
     'street service tee': 'street service tees',
     'street service tees': 'street service tees',
     'square head plugs': 'square head plugs',
-    'cored or hollow hex head plugs': 'square head plugs',
-    'cored or hollow square head plugs': 'square head plugs',
-    'solid square head plugs': 'square head plugs',
-    'solid hex head plugs': 'square head plugs',
+    'cored or hollow hex head plugs': 'square head cored plugs',
+    'cored or hollow square head plugs': 'square head cored plugs',
+    'square head cored plug': 'square head cored plugs',
+    'solid square head plugs': 'square head solid plugs',
+    'solid square head plug': 'square head solid plugs',
+    'solid hex head plugs': 'square head solid plugs',
+    'hex plugs': 'hex plugs',
+    'hex plug': 'hex plugs',
+    'plug': 'plugs',
+    'plugs': 'plugs',
+    'companion flange': 'companion flanges',
+    'companion flanges': 'companion flanges',
+    'face bushing': 'face bushings',
+    'face bushings': 'face bushings',
+    'bushing': 'bushings',
+    'bushings': 'bushings',
+    'hex head plug': 'hex head plugs',
+    'hex head plugs': 'hex head plugs',
+    'hex socket plug': 'hex socket plugs',
+    'hex socket plugs': 'hex socket plugs',
+    'square socket plug': 'square socket plugs',
+    'square socket plugs': 'square socket plugs',
+    'flush hex socket plug': 'flush hex socket plugs',
+    'flush hex socket plugs': 'flush hex socket plugs',
+    'hex cap': 'hex caps',
+    'hex caps': 'hex caps',
+    'flat face lap joint flange': 'flat face lap joint',
+    'flat face lap joint flanges': 'flat face lap joint',
+    'lap joint stub end': 'lap joint stub ends',
+    'lap joint stub ends': 'lap joint stub ends',
+    'concentric reducer': 'concentric reducers',
+    'concentric reducers': 'concentric reducers',
+    'eccentric reducer': 'eccentric reducers',
+    'eccentric reducers': 'eccentric reducers',
+    '90 degree elbow long radius': '90-degree long radius elbows',
+    '90 degree elbow short radius': '90-degree short radius elbows',
     'flush hex socket countersunk plugs': 'flush hex socket countersunk plugs',
     'flush hex socket countersunk plug': 'flush hex socket countersunk plugs',
     'hex socket countersunk plugs': 'hex socket countersunk plugs',
@@ -8205,7 +8216,20 @@ function shouldPreserveStrictCatalogSectionOrder_(section) {
   return isButtWeldCatalogProductGroup_(section.productGroup) ||
     isForgedSteelCatalogProductGroup_(section.productGroup) ||
     isBronzeFittingsCatalogProductGroup_(section.productGroup) ||
-    isMalleableIronCatalogProductGroup_(section.productGroup);
+    isMalleableIronCatalogProductGroup_(section.productGroup) ||
+    isSharedFittingOrderCatalogProductGroup_(section.productGroup) ||
+    String(section.productGroup || '').toLowerCase().indexOf('merchant steel') !== -1;
+}
+
+function isSharedFittingOrderCatalogProductGroup_(productGroup) {
+  const normalized = String(productGroup || '').toLowerCase();
+  return normalized.indexOf('malleable iron fittings') !== -1 ||
+    normalized.indexOf('forged steel fittings') !== -1 ||
+    normalized.indexOf('stainless steel cast fittings') !== -1 ||
+    normalized.indexOf('forged stainless steel fittings') !== -1 ||
+    normalized.indexOf('bronze fittings') !== -1 ||
+    normalized.indexOf('aluminium fittings') !== -1 ||
+    normalized.indexOf('aluminum fittings') !== -1;
 }
 
 function splitCatalogSectionsIntoPackingLanes_(sections) {
@@ -8329,11 +8353,12 @@ function chooseCatalogPageFromLookahead_(sections) {
   );
   const candidates = [];
   const requireFirstSection = shouldRequireCatalogLeadingSection_(leadingSection);
-  const requireContiguousFromStart = requireFirstSection &&
-    (isButtWeldCatalogProductGroup_(leadingSection && leadingSection.productGroup) ||
-      isForgedSteelCatalogProductGroup_(leadingSection && leadingSection.productGroup) ||
-      isBronzeFittingsCatalogProductGroup_(leadingSection && leadingSection.productGroup) ||
-      isMalleableIronCatalogProductGroup_(leadingSection && leadingSection.productGroup));
+  const requireContiguousFromStart = isSharedFittingOrderCatalogProductGroup_(leadingSection && leadingSection.productGroup) ||
+    isButtWeldCatalogProductGroup_(leadingSection && leadingSection.productGroup) ||
+    isForgedSteelCatalogProductGroup_(leadingSection && leadingSection.productGroup) ||
+    isBronzeFittingsCatalogProductGroup_(leadingSection && leadingSection.productGroup) ||
+    isMalleableIronCatalogProductGroup_(leadingSection && leadingSection.productGroup) ||
+    String(leadingSection && leadingSection.productGroup || '').toLowerCase().indexOf('merchant steel') !== -1;
 
   for (let count = 3; count >= 1; count--) {
     const combos = getCatalogIndexCombinations_(windowSize, count);
