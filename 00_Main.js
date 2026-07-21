@@ -5149,13 +5149,23 @@ function replaceCatalogImagePlaceholder_(slide, placeholder, fileId) {
     return;
   }
 
-  try {
-    const blob = fetchDriveImageBlob_(fileId, Math.round(width * 3));
-    slide.insertImage(blob, left, top, width, height);
-  } catch (err) {
-    Logger.log(`Image insert failed for ${fileId}: ${err.message}`);
-    insertMissingSlidesImageText_(slide, left, top, width, height);
+  const maxAttempts = 4;
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const blob = fetchDriveImageBlobWithRetry_(fileId, Math.round(width * 3));
+      slide.insertImage(blob, left, top, width, height);
+      return;
+    } catch (err) {
+      lastError = err;
+      Logger.log(`Image insert attempt ${attempt}/${maxAttempts} failed for ${fileId}: ${err.message}`);
+      if (attempt < maxAttempts) Utilities.sleep(750 * Math.pow(2, attempt - 1));
+    }
   }
+
+  Logger.log(`Image insert failed after ${maxAttempts} attempts for ${fileId}: ${lastError && lastError.message}`);
+  insertMissingSlidesImageText_(slide, left, top, width, height);
 }
 
 function replaceCatalogTablePlaceholder_(slide, placeholder, section) {
@@ -5255,6 +5265,30 @@ function fetchDriveImageBlob_(fileId, width) {
   }
 
   return response.getBlob();
+}
+
+function fetchDriveImageBlobWithRetry_(fileId, width) {
+  const maxAttempts = 3;
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return fetchDriveImageBlob_(fileId, width);
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxAttempts) Utilities.sleep(500 * Math.pow(2, attempt - 1));
+    }
+  }
+
+  // The thumbnail endpoint can fail independently of Drive file access. Use
+  // the original Drive blob as a final fallback before declaring it missing.
+  try {
+    return DriveApp.getFileById(fileId).getBlob();
+  } catch (err) {
+    lastError = err;
+  }
+
+  throw lastError || new Error(`Unable to read image file ${fileId}`);
 }
 
 function insertCatalogSlidesTable_(slide, section, left, top, width, height) {
