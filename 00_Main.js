@@ -6772,11 +6772,73 @@ function getCatalogSectionVariantSortWeight_(variant2) {
 function getCatalogSectionFittingSortWeight_(productGroup, fittingType, variant2) {
   const normalizedProductGroup = String(productGroup || '').toLowerCase();
 
+  if (normalizedProductGroup.indexOf('malleable iron fittings') !== -1) {
+    return getMalleableFittingTypeSortWeight_(fittingType, variant2);
+  }
+
   if (normalizedProductGroup.indexOf('forged stainless steel fitting') !== -1) {
     return getForgedStainlessFittingSortWeight_(fittingType, variant2);
   }
 
   return getCatalogFittingTypeSortWeight_(productGroup, fittingType);
+}
+
+function getMalleableFittingTypeSortWeight_(fittingType, variant2) {
+  const normalizedVariant = normalizeVariant2Key_(variant2).toLowerCase();
+  const is300Lb = normalizedVariant === '300lb' || normalizedVariant === '300 lb';
+  const order = is300Lb
+    ? [
+        '90-degree elbows',
+        '45-degree elbows',
+        '90-degree street elbows',
+        'tees',
+        'standard couplings',
+        'solid caps',
+        'unions',
+        'reducing couplings',
+        'reducing tees'
+      ]
+    : [
+        '90-degree elbows',
+        '45-degree elbows',
+        '90-degree street elbows',
+        '45-degree street elbows',
+        'side outlet elbows',
+        'unions',
+        '90-degree reducing elbows',
+        'tees',
+        'reducing tees',
+        'street service tees',
+        'side outlet tees',
+        'crosses',
+        'locknuts',
+        'hex bushings',
+        'square head cored plugs',
+        'square head solid plugs',
+        'solid caps',
+        'full flanges',
+        'reducing street elbows',
+        'reducing couplings',
+        'standard couplings',
+        'extension pieces',
+        '45-degree y laterals'
+      ];
+
+  const raw = String(fittingType || '').toLowerCase()
+    .replace(/[°/]/g, ' ')
+    .replace(/-/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  let normalized = normalizeCatalogFittingTypeForSort_(fittingType);
+
+  if (raw.indexOf('reducing street') !== -1) normalized = 'reducing street elbows';
+  else if (raw.indexOf('cored') !== -1 || raw.indexOf('hollow') !== -1) normalized = 'square head cored plugs';
+  else if (raw.indexOf('solid square') !== -1 || raw.indexOf('solid hex') !== -1) normalized = 'square head solid plugs';
+  else if (raw === 'couplings' || raw.indexOf('couplings banded') !== -1) normalized = 'standard couplings';
+  else if (raw.indexOf('wye') !== -1 || raw.indexOf('lateral') !== -1) normalized = '45-degree y laterals';
+
+  const index = order.indexOf(normalized);
+  return index === -1 ? 1000 + getCatalogFittingTypeSortWeight_('Malleable Iron Fittings', fittingType) : index;
 }
 
 function getForgedStainlessFittingSortWeight_(fittingType, variant2) {
@@ -8350,6 +8412,7 @@ function getCatalogSectionPackingLaneKey_(section) {
   }
 
   const variant2 = normalizeVariant2Key_(section && section.variant2).toLowerCase();
+  if (!variant2 && isMalleableIronCatalogProductGroup_(section && section.productGroup)) return '150lb';
   if (variant2 === '150lb' || variant2 === '150 lb') return '150lb';
   if (variant2 === '300lb' || variant2 === '300 lb') return '300lb';
   if (variant2 === '3000lb' || variant2 === '3000 lb') return '3000lb';
@@ -8794,8 +8857,8 @@ function comparePriceFileRows_(a, b, col) {
 
     return [
       getCatalogSectionVariantSortWeight_(variant2A) - getCatalogSectionVariantSortWeight_(variant2B),
-      getCatalogFittingTypeSortWeight_(productGroupA, a[col.Fitting_Type]) -
-        getCatalogFittingTypeSortWeight_(productGroupB, b[col.Fitting_Type]),
+      getCatalogSectionFittingSortWeight_(productGroupA, a[col.Fitting_Type], variant2A) -
+        getCatalogSectionFittingSortWeight_(productGroupB, b[col.Fitting_Type], variant2B),
       String(a[col.Fitting_Type] || '').localeCompare(String(b[col.Fitting_Type] || '')),
       variant2A.localeCompare(variant2B, undefined, { numeric: true }),
       normalizeMatchValue_(a[col.PLC]).localeCompare(normalizeMatchValue_(b[col.PLC]), undefined, { numeric: true }),
@@ -8861,11 +8924,16 @@ function compareCatalogSkuRows_(a, b, col) {
   const sizePartsA = getCatalogRowSizeParts_(a, col);
   const sizePartsB = getCatalogRowSizeParts_(b, col);
 
+  const variant2A = normalizeVariant2Key_(getOptionalCellValue_(a, col, 'Variant_2'));
+  const variant2B = normalizeVariant2Key_(getOptionalCellValue_(b, col, 'Variant_2'));
+
   return [
-    normalizeMatchValue_(a[col.PLC]).localeCompare(normalizeMatchValue_(b[col.PLC]), undefined, { numeric: true }),
-    getCatalogFittingTypeSortWeight_(a[col.Product_Group], a[col.Fitting_Type]) - getCatalogFittingTypeSortWeight_(b[col.Product_Group], b[col.Fitting_Type]),
+    getCatalogSectionVariantSortWeight_(variant2A) - getCatalogSectionVariantSortWeight_(variant2B),
+    getCatalogSectionFittingSortWeight_(a[col.Product_Group], a[col.Fitting_Type], variant2A) -
+      getCatalogSectionFittingSortWeight_(b[col.Product_Group], b[col.Fitting_Type], variant2B),
     String(a[col.Fitting_Type] || '').localeCompare(String(b[col.Fitting_Type] || '')),
-    normalizeVariant2Key_(getOptionalCellValue_(a, col, 'Variant_2')).localeCompare(normalizeVariant2Key_(getOptionalCellValue_(b, col, 'Variant_2'))),
+    variant2A.localeCompare(variant2B, undefined, { numeric: true }),
+    normalizeMatchValue_(a[col.PLC]).localeCompare(normalizeMatchValue_(b[col.PLC]), undefined, { numeric: true }),
     parseCatalogSizeSortValue_(sizePartsA[0]) - parseCatalogSizeSortValue_(sizePartsB[0]),
     parseCatalogSizeSortValue_(sizePartsA[1]) - parseCatalogSizeSortValue_(sizePartsB[1]),
     parseCatalogSizeSortValue_(sizePartsA[2]) - parseCatalogSizeSortValue_(sizePartsB[2]),
