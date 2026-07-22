@@ -8303,7 +8303,14 @@ function buildCatalogSlidePages_(sections) {
         continue;
       }
 
-      if (section.renderedRows > sectionPageRowLimit) {
+      // Treat a full one-section table as packable when there is an ordered
+      // section already waiting above it. This lets the next fitting group
+      // start in the remaining space and continue on the following page.
+      if (section.renderedRows >= sectionPageRowLimit) {
+        if (tryAppendOversizedCatalogSectionWithBuffer_(section, buffer, remainingSections, pages)) {
+          buffer = [];
+          continue;
+        }
         flushCatalogSectionPageBuffer_(buffer, pages);
         buffer = [];
         appendOversizedCatalogSectionPages_(section, remainingSections, pages);
@@ -8469,6 +8476,54 @@ function packCatalogSectionsIntoPages_(sections) {
   }
 
   return pages;
+}
+
+function tryAppendOversizedCatalogSectionWithBuffer_(section, buffer, remainingSections, pages) {
+  if (!buffer.length || !section || section.renderedRows <= 0) return false;
+
+  // Keep the explicit fitting order intact. If the whole buffer cannot fit,
+  // retain its ordered prefix and use the largest compatible trailing group(s)
+  // beneath the next oversized section.
+  for (let suffixStart = 0; suffixStart < buffer.length; suffixStart++) {
+    const prefix = buffer.slice(0, suffixStart);
+    const suffix = buffer.slice(suffixStart);
+    const maxChunkRows = Math.min(26, Number(section.renderedRows || 0));
+
+    for (let chunkRows = maxChunkRows; chunkRows >= 1; chunkRows--) {
+      const firstChunk = copyCatalogSectionForPage_(section, 1, chunkRows, false, false);
+      const combinedSections = suffix.concat([firstChunk]);
+      const layout = getCatalogPackedPageLayout_(combinedSections);
+      if (!layout || layout.template === '04_Product_Page_One_Section') continue;
+
+      flushCatalogSectionPageBuffer_(prefix, pages);
+      pages.push(buildCatalogSlidePage_(layout.template, combinedSections));
+
+      let remainingRows = Number(section.renderedRows || 0) - chunkRows;
+      let part = 2;
+      const continuationSections = [];
+      const pageRowLimit = getCatalogSectionPageRowLimit_(section);
+
+      while (remainingRows > 0) {
+        const renderedRowsOnPage = Math.min(pageRowLimit, remainingRows);
+        continuationSections.push(copyCatalogSectionForPage_(
+          section,
+          part,
+          renderedRowsOnPage,
+          true,
+          remainingRows <= pageRowLimit
+        ));
+        remainingRows -= renderedRowsOnPage;
+        part++;
+      }
+
+      if (continuationSections.length) {
+        remainingSections.unshift.apply(remainingSections, continuationSections);
+      }
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function getCatalogPackedPageLayout_(sections) {
